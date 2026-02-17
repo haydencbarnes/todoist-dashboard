@@ -1,6 +1,6 @@
 import { getToken } from 'next-auth/jwt';
 import type { NextApiRequest, NextApiResponse } from 'next';
-import type { TodoistStats, ErrorResponse } from '../../types';
+import type { ErrorResponse } from '../../types';
 import { fetchWithRetry } from '../../utils/fetchWithRetry';
 
 // Custom error class for Todoist API errors
@@ -13,7 +13,7 @@ class TodoistAPIError extends Error {
 
 export default async function handler(
   req: NextApiRequest,
-  res: NextApiResponse<TodoistStats | ErrorResponse>
+  res: NextApiResponse<Record<string, unknown> | ErrorResponse>
 ) {
   // Validate request method
   if (req.method !== 'GET') {
@@ -42,7 +42,7 @@ export default async function handler(
 
     const accessToken = token.accessToken as string;
 
-    const response = await fetchWithRetry('https://api.todoist.com/sync/v9/completed/get_stats', {
+    const response = await fetchWithRetry('https://api.todoist.com/api/v1/tasks/completed/stats', {
       headers: {
         'Authorization': `Bearer ${accessToken}`
       },
@@ -57,9 +57,9 @@ export default async function handler(
       );
     }
 
-    const data = await response.json() as TodoistStats;
-    
-    // Validate response data
+    const data = await response.json();
+
+    // Validate response data (v1 stats API uses snake_case)
     if (!data || typeof data.completed_count === 'undefined') {
       throw new Error('Invalid response data from Todoist API');
     }

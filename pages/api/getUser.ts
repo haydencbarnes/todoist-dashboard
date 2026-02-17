@@ -19,7 +19,7 @@ export default async function handler(
 
     const accessToken = token.accessToken as string;
 
-    const getUserDetails = await fetchWithRetry(`https://api.todoist.com/sync/v9/user`, {
+    const getUserDetails = await fetchWithRetry(`https://api.todoist.com/api/v1/user`, {
       headers: {
         Authorization: `Bearer ${accessToken}`,
       },

@@ -1,5 +1,4 @@
 import { Session } from "next-auth/core/types";
-import type { Project as TodoistProject } from "@doist/todoist-api-typescript";
 
 // API Response Types - These match the actual API responses
 export type CompletedTask = {
@@ -19,7 +18,7 @@ export type CompletedTask = {
   v2_task_id: string;
 };
 
-// Active task type from the API response
+// Active task type used throughout the dashboard
 export type ActiveTask = {
   assigneeId?: string | null;
   assignerId?: string | null;
@@ -29,11 +28,9 @@ export type ActiveTask = {
   creatorId: string;
   description: string;
   due?: {
-    // Required fields
     isRecurring: boolean;
     string: string;
     date: string;
-    // Optional fields
     datetime?: string | null;
     timezone?: string | null;
   } | null;
@@ -49,9 +46,17 @@ export type ActiveTask = {
   deadline?: string | null;
 };
 
-// Project data from API response
-export interface ProjectData extends Omit<TodoistProject, 'parent_id'> {
+// Project data used throughout the dashboard
+export interface ProjectData {
+  id: string;
+  name: string;
+  color: string;
   parentId: string | null;
+  order: number;
+  isFavorite: boolean;
+  isShared: boolean;
+  viewStyle: string;
+  url: string;
 }
 
 export interface DashboardData {
@@ -111,19 +116,19 @@ export interface KarmaStats {
 }
 
 export interface TodoistUser {
-  id: number;
+  id: string;
   email: string;
-  full_name: string;
-  image_id?: string;
-  is_premium: boolean;
-  join_date: string;
+  fullName: string;
+  isPremium: boolean;
   karma: number;
-  karma_trend: string;
-  daily_goal: number;
-  weekly_goal: number;
-  premium_until?: string;
-  start_page: string;
+  karmaTrend: string;
+  dailyGoal: number;
+  weeklyGoal: number;
+  completedCount: number;
+  completedToday: number;
   timezone: string;
+  startPage: string;
+  lang: string;
 }
 
 export interface ExtendedSession extends Session {

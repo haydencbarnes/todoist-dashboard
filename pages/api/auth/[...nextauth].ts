@@ -35,6 +35,22 @@ export const authOptions: NextAuthOptions = {
       token: {
         url: "https://todoist.com/oauth/access_token",
       },
+      userinfo: {
+        async request({ tokens }) {
+          const res = await fetch("https://api.todoist.com/api/v1/user", {
+            headers: {
+              Authorization: `Bearer ${tokens.access_token}`,
+            },
+          });
+
+          if (!res.ok) {
+            const text = await res.text();
+            throw new Error(`Failed to fetch user info (${res.status}): ${text.substring(0, 200)}`);
+          }
+
+          return await res.json();
+        },
+      },
     })
   ],
   callbacks: {
