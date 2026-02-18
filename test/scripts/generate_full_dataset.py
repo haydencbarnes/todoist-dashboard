@@ -172,7 +172,7 @@ def parse_args():
     parser.add_argument("--active-tasks", type=int, default=75, help="Number of active tasks")
     parser.add_argument("--completed-tasks", type=int, default=1500, help="Number of completed tasks")
     parser.add_argument("--months", type=int, default=12, help="Months of history to generate")
-    parser.add_argument("--output", type=str, default="../data/dummy-dataset.json", help="Output file path")
+    parser.add_argument("--output", type=str, default="../data/fake-dataset.json", help="Output file path")
     return parser.parse_args()
 
 

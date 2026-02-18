@@ -38,14 +38,14 @@ class ValidationError extends Error {
 }
 
 async function loadDummyDataset(): Promise<ApiResponse> {
-  const datasetPath = path.join(process.cwd(), 'test/data/dummy-dataset.json');
+  const datasetPath = path.join(process.cwd(), 'test/data/fake-dataset.json');
 
   try {
     const fileContents = await fs.readFile(datasetPath, 'utf-8');
     return JSON.parse(fileContents) as ApiResponse;
   } catch (error) {
     console.error('Failed to load dummy dataset at', datasetPath, error);
-    throw new Error('Fake dataset not found. Create test/data/dummy-dataset.json or disable USE_DUMMY_DATA.');
+    throw new Error('Fake dataset not found. Create test/data/fake-dataset.json or disable USE_DUMMY_DATA.');
   }
 }
 
