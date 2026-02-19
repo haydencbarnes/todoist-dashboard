@@ -3,11 +3,13 @@
  * Displays Daily, Weekly, and Monthly task completion trends with charts
  */
 
-import React, { memo } from 'react';
+import React, { memo, useState } from 'react';
 import { Tooltip } from 'react-tooltip';
 import { BsQuestionCircle } from 'react-icons/bs';
+import { HiArrowsRightLeft } from 'react-icons/hi2';
 import { calculateTaskAverages } from '../../utils/calculateTaskAverages';
 import TrendChart from '../TrendChart';
+import DeltaIndicator from '../shared/DeltaIndicator';
 import { CompletedTask } from '../../types';
 
 type QuestionMarkProps = {
@@ -27,17 +29,36 @@ QuestionMark.displayName = 'QuestionMark';
 type CompletionTrendsProps = {
   completedTasks: CompletedTask[];
   loading?: boolean;
+  comparisonTasks?: CompletedTask[] | undefined;
 };
 
-const CompletionTrends: React.FC<CompletionTrendsProps> = ({ completedTasks, loading }) => {
+const CompletionTrends: React.FC<CompletionTrendsProps> = ({ completedTasks, loading, comparisonTasks }) => {
+  const [showComparison, setShowComparison] = useState(false);
+  const hasComparisonData = comparisonTasks && comparisonTasks.length > 0;
   const taskAverages = calculateTaskAverages(completedTasks);
+  const comparisonAverages = showComparison && comparisonTasks ? calculateTaskAverages(comparisonTasks) : null;
 
   return (
     <div className={`bg-warm-card border border-warm-border p-2 md:p-6 rounded-2xl ${loading ? 'opacity-50' : ''}`}>
-      <h3 className="text-xl font-semibold mb-4 flex items-center text-white">
-        Task Completion Trends
-        <QuestionMark content="Historical trends of your task completion patterns" />
-      </h3>
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-xl font-semibold flex items-center text-white">
+          Task Completion Trends
+          <QuestionMark content="Historical trends of your task completion patterns" />
+        </h3>
+        {hasComparisonData && (
+          <button
+            onClick={() => setShowComparison(!showComparison)}
+            className={`p-1.5 rounded-lg border transition-all ${
+              showComparison
+                ? 'bg-warm-blue/15 border-warm-blue text-warm-blue'
+                : 'border-warm-border text-warm-gray hover:text-white hover:border-warm-gray'
+            }`}
+            title="Compare with previous period"
+          >
+            <HiArrowsRightLeft className="w-3.5 h-3.5" />
+          </button>
+        )}
+      </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         {/* Daily Trend */}
         <div>
@@ -53,6 +74,14 @@ const CompletionTrends: React.FC<CompletionTrendsProps> = ({ completedTasks, loa
                   <span className="text-warm-peach font-semibold mr-3">
                     {taskAverages.last24Hours.average} avg
                   </span>
+                  {comparisonAverages?.last24Hours && (
+                    <DeltaIndicator
+                      current={taskAverages.last24Hours.average}
+                      previous={comparisonAverages.last24Hours.average}
+                      size="sm"
+                      label="Daily avg vs previous period"
+                    />
+                  )}
                   <span
                     className={`text-sm px-2 py-1 rounded cursor-help ${
                       taskAverages.last24Hours.percentChange >= 0
@@ -73,6 +102,7 @@ const CompletionTrends: React.FC<CompletionTrendsProps> = ({ completedTasks, loa
                 data={taskAverages.last24Hours.history.data}
                 labels={taskAverages.last24Hours.history.labels}
                 height={180}
+                comparisonData={comparisonAverages?.last24Hours?.history.data}
               />
             </>
           )}
@@ -92,6 +122,14 @@ const CompletionTrends: React.FC<CompletionTrendsProps> = ({ completedTasks, loa
                   <span className="text-warm-peach font-semibold mr-3">
                     {taskAverages.last7Days.average} avg
                   </span>
+                  {comparisonAverages?.last7Days && (
+                    <DeltaIndicator
+                      current={taskAverages.last7Days.average}
+                      previous={comparisonAverages.last7Days.average}
+                      size="sm"
+                      label="Weekly avg vs previous period"
+                    />
+                  )}
                   <span
                     className={`text-sm px-2 py-1 rounded cursor-help ${
                       taskAverages.last7Days.percentChange >= 0
@@ -112,6 +150,7 @@ const CompletionTrends: React.FC<CompletionTrendsProps> = ({ completedTasks, loa
                 data={taskAverages.last7Days.history.data}
                 labels={taskAverages.last7Days.history.labels}
                 height={180}
+                comparisonData={comparisonAverages?.last7Days?.history.data}
               />
             </>
           )}
@@ -131,6 +170,14 @@ const CompletionTrends: React.FC<CompletionTrendsProps> = ({ completedTasks, loa
                   <span className="text-warm-peach font-semibold mr-3">
                     {taskAverages.last30Days.average} avg
                   </span>
+                  {comparisonAverages?.last30Days && (
+                    <DeltaIndicator
+                      current={taskAverages.last30Days.average}
+                      previous={comparisonAverages.last30Days.average}
+                      size="sm"
+                      label="Monthly avg vs previous period"
+                    />
+                  )}
                   <span
                     className={`text-sm px-2 py-1 rounded cursor-help ${
                       taskAverages.last30Days.percentChange >= 0
@@ -151,6 +198,7 @@ const CompletionTrends: React.FC<CompletionTrendsProps> = ({ completedTasks, loa
                 data={taskAverages.last30Days.history.data}
                 labels={taskAverages.last30Days.history.labels}
                 height={180}
+                comparisonData={comparisonAverages?.last30Days?.history.data}
               />
             </>
           )}

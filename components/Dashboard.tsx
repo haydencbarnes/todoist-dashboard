@@ -1,42 +1,52 @@
 import React, { useState, useMemo } from 'react';
+import dynamic from 'next/dynamic';
 import { useSession } from 'next-auth/react';
 import { Tooltip } from 'react-tooltip';
-import ActiveTasksByProject from './ActiveTasksByProject';
-import CompletedTasksByProject from './CompletedTasksByProject';
+import { SiTodoist } from 'react-icons/si';
+import { HiX } from 'react-icons/hi';
+import { AnimatePresence } from 'framer-motion';
+import { startOfDay, endOfDay, subDays } from 'date-fns';
+
+// Static imports — lightweight / above-the-fold
+import QuickStats from './QuickStats/QuickStats';
 import { ProductivityScore, InsightsSummary, CompletionTrends } from './Insights';
 import GoalProgress from './GoalProgress';
 import RecentlyCompletedList from './RecentlyCompleted/RecentlyCompletedList';
-import CompletedTasksOverTime from './CompletedTasksOverTime';
-import TaskPriority from './TaskPriority';
 import BacklogHealth from './BacklogHealth';
-import CompletedByTimeOfDay from './CompletedByTimeOfDay';
-import { SiTodoist } from 'react-icons/si';
-import { HiX } from 'react-icons/hi';
 import CompletionStreak from './CompletionStreak';
-import TaskWordCloud from './TaskWordCloud';
 import RecurringTasksPreview from './RecurringTasks/RecurringTasksPreview';
+
+// Dynamic imports — heavy chart components (code-split)
+const CompletedTasksOverTime = dynamic(() => import('./CompletedTasksOverTime'), { ssr: false });
+const CompletionHeatmap = dynamic(() => import('./CompletionHeatmap'), { ssr: false });
+const CompletedByTimeOfDay = dynamic(() => import('./CompletedByTimeOfDay'), { ssr: false });
+const ProjectVelocity = dynamic(() => import('./ProjectVelocity'), { ssr: false });
+const CompletedTasksByProject = dynamic(() => import('./CompletedTasksByProject'), { ssr: false });
+const ActiveTasksByProject = dynamic(() => import('./ActiveTasksByProject'), { ssr: false });
+const TaskPriority = dynamic(() => import('./TaskPriority'), { ssr: false });
+const LabelDistribution = dynamic(() => import('./LabelDistribution').then(mod => ({ default: mod.default })), { ssr: false });
+const TaskWordCloud = dynamic(() => import('./TaskWordCloud'), { ssr: false });
+const TaskLeadTime = dynamic(() => import('./TaskLeadTime'), { ssr: false });
+
+// Layout & shared
 import { MAX_TASKS } from '../utils/constants';
 import QuestionMark from './shared/QuestionMark';
 import LoadingIndicator from './shared/LoadingIndicator';
-import QuickStats from './QuickStats/QuickStats';
+import LazySection from './shared/LazySection';
 import { useDashboardData } from '../hooks/useDashboardData';
 import { useDashboardPreferences } from '../hooks/useDashboardPreferences';
 import Layout from './layout/Layout';
 import ProjectPicker from './ProjectPicker';
 import DateRangePicker from './DateRangePicker';
-import TaskLeadTime from './TaskLeadTime';
-import ProjectVelocity from './ProjectVelocity';
-import CompletionHeatmap from './CompletionHeatmap';
 import ExportButton from './Export/ExportButton';
 import ExportModal from './Export/ExportModal';
 import { VisibilityButton, VisibilityModal } from './VisibilitySettings';
 import { MobileControlsFAB, MobileControlsSheet } from './MobileControls';
-import { AnimatePresence } from 'framer-motion';
 import { useExportSection } from '../hooks/useExportManager';
 import { filterCompletedTasksByDateRange } from '../utils/filterByDateRange';
-import { startOfDay, endOfDay, subDays } from 'date-fns';
-import LabelDistribution, { LabelViewMode } from './LabelDistribution';
+import { type LabelViewMode } from './LabelDistribution';
 import { trackEvent, trackChartInteraction } from '@/utils/analytics';
+import { calculateComparisonPeriod } from '../utils/comparisonPeriod';
 
 export default function Dashboard(): JSX.Element {
   const { status } = useSession();
@@ -140,6 +150,19 @@ export default function Dashboard(): JSX.Element {
 
     return { thisWeek, lastWeek, percentChange };
   }, [projectFilteredCompletedTasks]);
+
+  // Period-over-period comparison (available when a date range is selected)
+  const comparisonPeriod = useMemo(() => {
+    return calculateComparisonPeriod(dateRange);
+  }, [dateRange]);
+
+  const comparisonCompletedTasks = useMemo(() => {
+    if (!comparisonPeriod) return undefined;
+    return filterCompletedTasksByDateRange(
+      projectFilteredCompletedTasks,
+      comparisonPeriod.previous
+    );
+  }, [projectFilteredCompletedTasks, comparisonPeriod]);
 
   if (status !== 'authenticated') {
     return (
@@ -273,64 +296,90 @@ export default function Dashboard(): JSX.Element {
           />
 
           {/* Quick Stats */}
-          {isSectionVisible('quick-stats') && (
-            <div ref={quickStatsRef}>
-              <QuickStats
-                activeTasks={filteredActiveTasks}
-                projectCount={selectedProjectIds.length || data?.projectData?.length || 0}
-                totalCompletedTasks={filteredCompletedTasks.length}
-                karma={data?.karma || 0}
-                karmaTrend={data?.karmaTrend || 'none'}
-                karmaRising={data?.karmaRising || false}
-                weeklyComparison={weeklyComparison}
-              />
-            </div>
-          )}
+          <LazySection
+            sectionId="quick-stats"
+            exportRef={quickStatsRef}
+            visible={isSectionVisible('quick-stats')}
+            eager
+            minHeight={120}
+          >
+            <QuickStats
+              activeTasks={filteredActiveTasks}
+              projectCount={selectedProjectIds.length || data?.projectData?.length || 0}
+              totalCompletedTasks={filteredCompletedTasks.length}
+              karma={data?.karma || 0}
+              karmaTrend={data?.karmaTrend || 'none'}
+              karmaRising={data?.karmaRising || false}
+              weeklyComparison={weeklyComparison}
+            />
+          </LazySection>
 
           {/* Main Content Grid */}
           <div className="space-y-6 mt-6">
             {/* Productivity Score & Key Metrics */}
-            {isSectionVisible('productivity-score') && (
-              <div ref={productivityScoreRef}>
-                <ProductivityScore
-                  completedTasks={filteredCompletedTasks}
-                  loading={isLoading}
-                />
-              </div>
-            )}
+            <LazySection
+              sectionId="productivity-score"
+              exportRef={productivityScoreRef}
+              visible={isSectionVisible('productivity-score')}
+              eager
+              minHeight={200}
+            >
+              <ProductivityScore
+                completedTasks={filteredCompletedTasks}
+                loading={isLoading}
+              />
+            </LazySection>
 
             {/* Goal Progress */}
-            {isSectionVisible('goal-progress') && (
-              <div className="bg-warm-card border border-warm-border p-6 rounded-2xl" ref={goalProgressRef}>
+            <LazySection
+              sectionId="goal-progress"
+              exportRef={goalProgressRef}
+              visible={isSectionVisible('goal-progress')}
+              eager
+              minHeight={200}
+            >
+              <div className="bg-warm-card border border-warm-border p-6 rounded-2xl">
                 <h3 className="text-xl font-semibold mb-6 text-white">Goal Progress</h3>
                 <GoalProgress allData={data} />
               </div>
-            )}
+            </LazySection>
 
             {/* Insights Summary (Completion Rates, Project Distribution, Weekly Progress) */}
-            {isSectionVisible('insights-summary') && (
-              <div ref={insightsSummaryRef}>
-                <InsightsSummary
-                  completedTasks={filteredCompletedTasks}
-                  projectData={filteredProjects}
-                  loading={isLoading}
-                />
-              </div>
-            )}
+            <LazySection
+              sectionId="insights-summary"
+              exportRef={insightsSummaryRef}
+              visible={isSectionVisible('insights-summary')}
+              minHeight={300}
+            >
+              <InsightsSummary
+                completedTasks={filteredCompletedTasks}
+                projectData={filteredProjects}
+                loading={isLoading}
+              />
+            </LazySection>
 
             {/* Task Completion Trends */}
-            {isSectionVisible('completion-trends') && (
-              <div ref={completionTrendsRef}>
-                <CompletionTrends
-                  completedTasks={filteredCompletedTasks}
-                  loading={isLoading}
-                />
-              </div>
-            )}
+            <LazySection
+              sectionId="completion-trends"
+              exportRef={completionTrendsRef}
+              visible={isSectionVisible('completion-trends')}
+              minHeight={400}
+            >
+              <CompletionTrends
+                completedTasks={filteredCompletedTasks}
+                loading={isLoading}
+                comparisonTasks={comparisonCompletedTasks}
+              />
+            </LazySection>
 
             {/* Project Velocity & Focus Drift */}
-            {isSectionVisible('project-velocity') && (
-              <div className="bg-warm-card border border-warm-border rounded-2xl p-6 sm:p-8 hover:bg-warm-hover transition-colors" ref={projectVelocityRef}>
+            <LazySection
+              sectionId="project-velocity"
+              exportRef={projectVelocityRef}
+              visible={isSectionVisible('project-velocity')}
+              minHeight={400}
+            >
+              <div className="bg-warm-card border border-warm-border rounded-2xl p-6 sm:p-8 hover:bg-warm-hover transition-colors">
                 <h2 className="text-2xl font-semibold text-white mb-6">
                   Project Velocity & Focus Shifts
                   <QuestionMark content="Shows how your focus shifts between projects over time. Analyze your project velocity (tasks completed per period) and focus drift (percentage of total effort per project)." />
@@ -339,43 +388,53 @@ export default function Dashboard(): JSX.Element {
                   completedTasks={filteredCompletedTasks}
                   projectData={filteredProjects}
                   loading={needsFullData}
+                  comparisonTasks={comparisonCompletedTasks}
                 />
               </div>
-            )}
+            </LazySection>
 
             {/* Recently Completed and Backlog Health - 2 Column Layout */}
-            {isSectionVisible('recently-completed-backlog') && (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6" ref={recentlyCompletedBacklogRef}>
-                <div className="bg-warm-card border border-warm-border rounded-2xl p-6 hover:bg-warm-hover transition-colors">
-                  <h2 className="text-xl font-semibold text-white mb-6 flex items-center gap-2">
-                    Recently Completed
-                    <span className="text-2xl">✅</span>
-                  </h2>
-                  <RecentlyCompletedList
-                    allData={{
-                      ...data,
-                      allCompletedTasks: filteredCompletedTasks
-                    }}
-                  />
-                </div>
-
-                <div className="bg-warm-card border border-warm-border rounded-2xl p-6 hover:bg-warm-hover transition-colors">
-                  <h2 className="text-xl font-semibold text-white mb-6">
-                    Backlog Health
-                    <QuestionMark content="Health score based on task age, overdue status, and due dates. Shows tasks needing attention: overdue tasks, very old tasks (60+ days), old unscheduled tasks (30+ days), and high-priority tasks without due dates." />
-                  </h2>
-                  <BacklogHealth
-                    activeTasks={filteredActiveTasks}
-                    completedTasks={filteredCompletedTasks}
-                    projectData={filteredProjects}
-                  />
-                </div>
+            <LazySection
+              sectionId="recently-completed-backlog"
+              exportRef={recentlyCompletedBacklogRef}
+              visible={isSectionVisible('recently-completed-backlog')}
+              minHeight={400}
+              className="grid grid-cols-1 lg:grid-cols-2 gap-6"
+            >
+              <div className="bg-warm-card border border-warm-border rounded-2xl p-6 hover:bg-warm-hover transition-colors">
+                <h2 className="text-xl font-semibold text-white mb-6 flex items-center gap-2">
+                  Recently Completed
+                  <span className="text-2xl">✅</span>
+                </h2>
+                <RecentlyCompletedList
+                  allData={{
+                    ...data,
+                    allCompletedTasks: filteredCompletedTasks
+                  }}
+                />
               </div>
-            )}
+
+              <div className="bg-warm-card border border-warm-border rounded-2xl p-6 hover:bg-warm-hover transition-colors">
+                <h2 className="text-xl font-semibold text-white mb-6">
+                  Backlog Health
+                  <QuestionMark content="Health score based on task age, overdue status, and due dates. Shows tasks needing attention: overdue tasks, very old tasks (60+ days), old unscheduled tasks (30+ days), and high-priority tasks without due dates." />
+                </h2>
+                <BacklogHealth
+                  activeTasks={filteredActiveTasks}
+                  completedTasks={filteredCompletedTasks}
+                  projectData={filteredProjects}
+                />
+              </div>
+            </LazySection>
 
             {/* Recurring Tasks Section */}
-            {isSectionVisible('recurring-tasks') && (
-              <div className="bg-warm-card border border-warm-border rounded-2xl p-6 hover:bg-warm-hover transition-colors" ref={recurringTasksRef}>
+            <LazySection
+              sectionId="recurring-tasks"
+              exportRef={recurringTasksRef}
+              visible={isSectionVisible('recurring-tasks')}
+              minHeight={300}
+            >
+              <div className="bg-warm-card border border-warm-border rounded-2xl p-6 hover:bg-warm-hover transition-colors">
                 <div className="flex items-center mb-6">
                   <h2 className="text-xl font-semibold text-white">
                     Recurring Tasks
@@ -393,62 +452,76 @@ export default function Dashboard(): JSX.Element {
                   />
                 )}
               </div>
-            )}
+            </LazySection>
 
             {/* Task Management Section - 2 Column Layout */}
-            {isSectionVisible('task-management') && (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6" ref={taskManagementRef}>
-                <div className={`bg-warm-card border border-warm-border rounded-2xl p-6 transition-opacity ${needsFullData ? 'opacity-50' : ''}`}>
-                  <h2 className="text-xl font-semibold text-white mb-6">
-                    Tasks by Priority
-                  </h2>
-                  <TaskPriority
-                    activeTasks={filteredActiveTasks}
-                    loading={needsFullData}
-                  />
-                </div>
-
-                <div className={`bg-warm-card border border-warm-border rounded-2xl p-6 transition-opacity ${needsFullData ? 'opacity-50' : ''}`}>
-                  <h2 className="text-xl font-semibold text-white mb-6">
-                    Active Tasks by Project
-                  </h2>
-                  <ActiveTasksByProject
-                    projectData={filteredProjects}
-                    activeTasks={filteredActiveTasks}
-                    loading={needsFullData}
-                  />
-                </div>
+            <LazySection
+              sectionId="task-management"
+              exportRef={taskManagementRef}
+              visible={isSectionVisible('task-management')}
+              minHeight={400}
+              className="grid grid-cols-1 lg:grid-cols-2 gap-6"
+            >
+              <div className={`bg-warm-card border border-warm-border rounded-2xl p-6 transition-opacity ${needsFullData ? 'opacity-50' : ''}`}>
+                <h2 className="text-xl font-semibold text-white mb-6">
+                  Tasks by Priority
+                </h2>
+                <TaskPriority
+                  activeTasks={filteredActiveTasks}
+                  loading={needsFullData}
+                />
               </div>
-            )}
+
+              <div className={`bg-warm-card border border-warm-border rounded-2xl p-6 transition-opacity ${needsFullData ? 'opacity-50' : ''}`}>
+                <h2 className="text-xl font-semibold text-white mb-6">
+                  Active Tasks by Project
+                </h2>
+                <ActiveTasksByProject
+                  projectData={filteredProjects}
+                  activeTasks={filteredActiveTasks}
+                  loading={needsFullData}
+                />
+              </div>
+            </LazySection>
 
             {/* Completed Tasks over time and by project - 2 Column Layout */}
-            {isSectionVisible('completed-tasks') && (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6" ref={completedTasksRef}>
-                <div className={`bg-warm-card border border-warm-border rounded-2xl p-6 transition-opacity ${needsFullData ? 'opacity-50' : ''}`}>
-                  <h2 className="text-xl font-semibold text-white mb-6">
-                    Completed Tasks Over Time
-                  </h2>
-                  <CompletedTasksOverTime
-                    allData={filteredCompletedTasks}
-                    loading={isLoading}
-                  />
-                </div>
-
-                <div className={`flex flex-col bg-warm-card border border-warm-border rounded-2xl p-6 transition-opacity ${needsFullData ? 'opacity-50' : ''}`}>
-                  <h2 className="text-xl font-semibold text-white mb-6">
-                    Completed Tasks by Project
-                  </h2>
-                  <CompletedTasksByProject
-                    projectData={projectsWithCounts}
-                    loading={needsFullData}
-                  />
-                </div>
+            <LazySection
+              sectionId="completed-tasks"
+              exportRef={completedTasksRef}
+              visible={isSectionVisible('completed-tasks')}
+              minHeight={400}
+              className="grid grid-cols-1 lg:grid-cols-2 gap-6"
+            >
+              <div className={`bg-warm-card border border-warm-border rounded-2xl p-6 transition-opacity ${needsFullData ? 'opacity-50' : ''}`}>
+                <h2 className="text-xl font-semibold text-white mb-6">
+                  Completed Tasks Over Time
+                </h2>
+                <CompletedTasksOverTime
+                  allData={filteredCompletedTasks}
+                  loading={isLoading}
+                  comparisonData={comparisonCompletedTasks}
+                />
               </div>
-            )}
+
+              <div className={`flex flex-col bg-warm-card border border-warm-border rounded-2xl p-6 transition-opacity ${needsFullData ? 'opacity-50' : ''}`}>
+                <h2 className="text-xl font-semibold text-white mb-6">
+                  Completed Tasks by Project
+                </h2>
+                <CompletedTasksByProject
+                  projectData={projectsWithCounts}
+                  loading={needsFullData}
+                />
+              </div>
+            </LazySection>
 
             {/* Label Distribution */}
-            {isSectionVisible('label-distribution') && (
-              <div className="bg-warm-card border border-warm-border rounded-2xl p-6 sm:p-8" ref={labelDistributionRef}>
+            <LazySection
+              sectionId="label-distribution"
+              exportRef={labelDistributionRef}
+              visible={isSectionVisible('label-distribution')}
+              minHeight={400}
+            >
+              <div className="bg-warm-card border border-warm-border rounded-2xl p-6 sm:p-8">
                 <div className="flex items-center justify-between mb-6">
                   <h2 className="text-xl sm:text-2xl font-semibold text-white">
                     Tasks by Label
@@ -491,11 +564,16 @@ export default function Dashboard(): JSX.Element {
                   viewMode={labelViewMode}
                 />
               </div>
-            )}
+            </LazySection>
 
             {/* Completion Heatmap */}
-            {isSectionVisible('completion-heatmap') && (
-              <div className="bg-warm-card border border-warm-border rounded-2xl p-6 sm:p-8" ref={completionHeatmapRef}>
+            <LazySection
+              sectionId="completion-heatmap"
+              exportRef={completionHeatmapRef}
+              visible={isSectionVisible('completion-heatmap')}
+              minHeight={400}
+            >
+              <div className="bg-warm-card border border-warm-border rounded-2xl p-6 sm:p-8">
                 <h2 className="text-xl sm:text-2xl font-semibold text-white mb-6">
                   Completion Patterns Heatmap
                   <QuestionMark content="Visualization of when you typically complete tasks by day of week and time of day. Identify your most productive times and optimize your schedule accordingly." />
@@ -505,41 +583,51 @@ export default function Dashboard(): JSX.Element {
                   loading={needsFullData}
                 />
               </div>
-            )}
+            </LazySection>
 
             {/* Daily Stats - 2 Column Layout */}
-            {isSectionVisible('daily-stats') && (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6" ref={dailyStatsRef}>
-                <div className={`bg-warm-card border border-warm-border rounded-2xl p-6 transition-opacity ${needsFullData ? 'opacity-50' : ''}`}>
-                  <h2 className="text-xl font-semibold text-white mb-6">
-                    Daily Streak
-                  </h2>
-                  <CompletionStreak
-                    allData={{
-                      allCompletedTasks: filteredCompletedTasks
-                    }}
-                  />
-                </div>
-
-                <div className={`bg-warm-card border border-warm-border rounded-2xl p-6 transition-opacity ${needsFullData ? 'opacity-50' : ''}`}>
-                  <h2 className="text-xl font-semibold text-white mb-6">
-                    Daily Activity Pattern
-                  </h2>
-                  <CompletedByTimeOfDay
-                    allData={{
-                      ...data,
-                      allCompletedTasks: filteredCompletedTasks
-                    }}
-                    loading={needsFullData}
-                  />
-                </div>
+            <LazySection
+              sectionId="daily-stats"
+              exportRef={dailyStatsRef}
+              visible={isSectionVisible('daily-stats')}
+              minHeight={350}
+              className="grid grid-cols-1 lg:grid-cols-2 gap-6"
+            >
+              <div className={`bg-warm-card border border-warm-border rounded-2xl p-6 transition-opacity ${needsFullData ? 'opacity-50' : ''}`}>
+                <h2 className="text-xl font-semibold text-white mb-6">
+                  Daily Streak
+                </h2>
+                <CompletionStreak
+                  allData={{
+                    allCompletedTasks: filteredCompletedTasks
+                  }}
+                />
               </div>
-            )}
+
+              <div className={`bg-warm-card border border-warm-border rounded-2xl p-6 transition-opacity ${needsFullData ? 'opacity-50' : ''}`}>
+                <h2 className="text-xl font-semibold text-white mb-6">
+                  Daily Activity Pattern
+                </h2>
+                <CompletedByTimeOfDay
+                  allData={{
+                    ...data,
+                    allCompletedTasks: filteredCompletedTasks
+                  }}
+                  loading={needsFullData}
+                />
+              </div>
+            </LazySection>
           </div>
 
           {/* Task Lead Time Analysis */}
-          {isSectionVisible('task-lead-time') && (
-            <div className="bg-warm-card border border-warm-border rounded-2xl p-6 sm:p-8 mt-8" ref={taskLeadTimeRef}>
+          <LazySection
+            sectionId="task-lead-time"
+            exportRef={taskLeadTimeRef}
+            visible={isSectionVisible('task-lead-time')}
+            minHeight={400}
+            className="mt-8"
+          >
+            <div className="bg-warm-card border border-warm-border rounded-2xl p-6 sm:p-8">
               <h2 className="text-xl sm:text-2xl font-semibold text-white mb-6">
                 Task Lead Time Analysis
                 <QuestionMark content="Cycle time analysis showing how long tasks take from creation to completion. This helps identify bottlenecks in your workflow and set expectations for different types of tasks." />
@@ -550,11 +638,17 @@ export default function Dashboard(): JSX.Element {
                 loading={needsFullData}
               />
             </div>
-          )}
+          </LazySection>
 
           {/* Task Topics Section */}
-          {isSectionVisible('task-topics') && (
-            <div className="bg-warm-card border border-warm-border rounded-2xl p-6 my-8" ref={taskTopicsRef}>
+          <LazySection
+            sectionId="task-topics"
+            exportRef={taskTopicsRef}
+            visible={isSectionVisible('task-topics')}
+            minHeight={400}
+            className="my-8"
+          >
+            <div className="bg-warm-card border border-warm-border rounded-2xl p-6">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl sm:text-2xl font-semibold text-white">
                   Task Topics
@@ -571,7 +665,7 @@ export default function Dashboard(): JSX.Element {
                 />
               )}
             </div>
-          )}
+          </LazySection>
         </div>
         <Tooltip
           id="dashboard-tooltip"

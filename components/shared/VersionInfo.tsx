@@ -2,10 +2,21 @@ import React, { useState } from 'react';
 import { FaTimes } from 'react-icons/fa';
 
 // Current version number
-const APP_VERSION = '0.10.2';
+const APP_VERSION = '0.11.0';
 
 // Changelog entries - newest first
 const CHANGELOG = [
+  {
+    version: '0.11.0',
+    date: 'February 2026',
+    changes: [
+      'Added period-over-period comparison for completion, trend, and velocity charts',
+      'Lazy section rendering and code-split chart imports for faster page loads',
+      'Migrated from Todoist Sync API v9 to REST API v1',
+      'Upgraded @doist/todoist-api-typescript from v3 to v6.5',
+      'Increased completed task fetch limit to 10,000 for multi-year analytics',
+    ]
+  },
   {
     version: '0.10.2',
     date: 'December 2025',

@@ -15,6 +15,7 @@ import {
   startOfDay,
   endOfDay
 } from 'date-fns';
+import { HiArrowsRightLeft } from 'react-icons/hi2';
 import { trackChartInteraction } from '@/utils/analytics';
 
 interface Task {
@@ -24,6 +25,7 @@ interface Task {
 interface CompletedTasksOverTimeProps {
   allData: Task[];
   loading: boolean;
+  comparisonData?: Task[] | undefined;
 }
 
 type TimeFrame = '1M' | '3M' | '6M' | '1Y';
@@ -39,9 +41,11 @@ interface DataPoints {
   data: number[];
 }
 
-function CompletedTasksOverTime({ allData, loading }: CompletedTasksOverTimeProps) {
+function CompletedTasksOverTime({ allData, loading, comparisonData }: CompletedTasksOverTimeProps) {
   const [timeFrame, setTimeFrame] = useState<TimeFrame>('1M');
   const [viewType, setViewType] = useState<ViewType>('daily');
+  const [showComparison, setShowComparison] = useState(false);
+  const hasComparisonData = comparisonData && comparisonData.length > 0;
   
   if (!allData || loading) return null;
 
@@ -173,6 +177,52 @@ function CompletedTasksOverTime({ allData, loading }: CompletedTasksOverTimeProp
 
   const { labels, data } = getDataPoints();
 
+  // Compute comparison data points using the same bucketing logic
+  const getComparisonDataPoints = (): number[] => {
+    if (!showComparison || !comparisonData || comparisonData.length === 0) return [];
+    switch (viewType) {
+      case 'daily': {
+        const days = eachDayOfInterval(dateRange);
+        return days.map(day => {
+          const dayStart = startOfDay(day);
+          const dayEnd = endOfDay(day);
+          return comparisonData.filter(task => {
+            if (!task.completed_at) return false;
+            const completedDate = new Date(task.completed_at);
+            return isWithinInterval(completedDate, { start: dayStart, end: dayEnd });
+          }).length;
+        });
+      }
+      case 'weekly': {
+        const weeks = eachWeekOfInterval(dateRange);
+        return weeks.map(weekStart => {
+          const weekEnd = endOfWeek(weekStart);
+          return comparisonData.filter(task => {
+            if (!task.completed_at) return false;
+            const completedDate = new Date(task.completed_at);
+            return isWithinInterval(completedDate, { start: weekStart, end: weekEnd });
+          }).length;
+        });
+      }
+      case 'monthly': {
+        const months = eachMonthOfInterval(dateRange);
+        return months.map(monthStart => {
+          const monthEnd = endOfMonth(monthStart);
+          return comparisonData.filter(task => {
+            if (!task.completed_at) return false;
+            const completedDate = new Date(task.completed_at);
+            return isWithinInterval(completedDate, { start: monthStart, end: monthEnd });
+          }).length;
+        });
+      }
+      default:
+        return [];
+    }
+  };
+
+  const comparisonPoints = getComparisonDataPoints();
+  const hasComparison = comparisonPoints.length > 0;
+
   const option: EChartsOption = {
     tooltip: {
       trigger: 'axis',
@@ -183,11 +233,15 @@ function CompletedTasksOverTime({ allData, loading }: CompletedTasksOverTimeProp
         color: '#f3f4f6'
       },
       formatter: function(params: CallbackDataParams | CallbackDataParams[]): string {
-        const data = Array.isArray(params) ? params[0] : params;
-        if (!data || typeof data.value === 'undefined' || !('axisValue' in data)) {
+        const items = Array.isArray(params) ? params : [params];
+        if (!items[0] || typeof items[0].value === 'undefined' || !('axisValue' in items[0])) {
           return '';
         }
-        return `${data.axisValue}<br/>Tasks Completed: ${data.value}`;
+        let html = `${items[0].axisValue}<br/>Current: ${items[0].value}`;
+        if (items[1] && typeof items[1].value !== 'undefined') {
+          html += `<br/>Previous: ${items[1].value}`;
+        }
+        return html;
       }
     },
     grid: {
@@ -234,38 +288,73 @@ function CompletedTasksOverTime({ allData, loading }: CompletedTasksOverTimeProp
         show: false
       }
     },
-    series: [{
-      data: data,
-      type: 'line',
-      smooth: true,
-      symbol: 'circle',
-      symbolSize: 8,
-      lineStyle: {
-        width: 4,
-        color: '#FF9B71'  // warm-peach
-      },
-      itemStyle: {
-        color: '#FF9B71',  // warm-peach
-        borderWidth: 2,
-        borderColor: '#ffffff'
-      },
-      areaStyle: {
-        opacity: 0.2,
-        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{
-          offset: 0,
+    series: [
+      {
+        name: 'Current',
+        data: data,
+        type: 'line',
+        smooth: true,
+        symbol: 'circle',
+        symbolSize: 8,
+        lineStyle: {
+          width: 4,
           color: '#FF9B71'  // warm-peach
-        }, {
-          offset: 1,
-          color: '#7FD49E'  // warm-sage
-        }])
-      }
-    }]
+        },
+        itemStyle: {
+          color: '#FF9B71',  // warm-peach
+          borderWidth: 2,
+          borderColor: '#ffffff'
+        },
+        areaStyle: {
+          opacity: 0.2,
+          color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{
+            offset: 0,
+            color: '#FF9B71'  // warm-peach
+          }, {
+            offset: 1,
+            color: '#7FD49E'  // warm-sage
+          }])
+        }
+      },
+      ...(hasComparison ? [{
+        name: 'Previous Period',
+        data: comparisonPoints,
+        type: 'line' as const,
+        smooth: true,
+        symbol: 'none' as const,
+        lineStyle: {
+          width: 2,
+          color: '#9CA3AF',
+          type: 'dashed' as const,
+        },
+        itemStyle: {
+          color: '#9CA3AF',
+        },
+        areaStyle: {
+          opacity: 0.05,
+          color: '#9CA3AF',
+        },
+      }] : [])
+    ]
   };
 
   return (
     <div className="w-full">
       <div className="flex justify-end space-x-2 mb-4">
-        <div className="flex space-x-2">
+        <div className="flex items-center space-x-2">
+          {hasComparisonData && (
+            <button
+              onClick={() => setShowComparison(!showComparison)}
+              className={`p-1.5 rounded-lg border transition-all ${
+                showComparison
+                  ? 'bg-warm-blue/15 border-warm-blue text-warm-blue'
+                  : 'border-warm-border text-warm-gray hover:text-white hover:border-warm-gray'
+              }`}
+              title="Compare with previous period"
+            >
+              <HiArrowsRightLeft className="w-3.5 h-3.5" />
+            </button>
+          )}
           <select
             value={viewType}
             onChange={(e) => handleViewTypeChange(e.target.value as ViewType)}
@@ -289,7 +378,7 @@ function CompletedTasksOverTime({ allData, loading }: CompletedTasksOverTimeProp
           </select>
         </div>
       </div>
-      <ReactECharts option={option} style={{ height: '400px' }} />
+      <ReactECharts option={option} notMerge={true} style={{ height: '400px' }} />
     </div>
   );
 }

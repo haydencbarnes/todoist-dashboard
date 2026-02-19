@@ -16,6 +16,7 @@ interface ExportManagerContextType {
   startExport: (selectedSectionIds: string[]) => Promise<void>;
   exportProgress: ExportProgress | null;
   isExporting: boolean;
+  forceRenderAll: boolean;
 }
 
 const ExportManagerContext = createContext<ExportManagerContextType | undefined>(undefined);
@@ -24,21 +25,34 @@ export function ExportProvider({ children }: { children: React.ReactNode }) {
   const [sections, setSections] = useState<ExportSection[]>([]);
   const [exportProgress, setExportProgress] = useState<ExportProgress | null>(null);
   const [isExporting, setIsExporting] = useState(false);
+  const [forceRenderAll, setForceRenderAll] = useState(false);
   const sectionsRef = useRef<Map<string, ExportSection>>(new Map());
   const resetTimeoutRef = useRef<number | null>(null);
+  const pendingFlushRef = useRef(false);
 
   /**
    * Register a section for export
+   * Uses a deferred flush so multiple registrations in the same render cycle
+   * produce only a single setSections call, avoiding cascading re-renders.
    */
   const registerSection = useCallback((id: string, label: string, element: HTMLElement | null) => {
+    const existing = sectionsRef.current.get(id);
+    if (existing && existing.label === label && existing.element === element) return;
+
     sectionsRef.current.set(id, {
       id,
       label,
       element,
-      chartInstances: sectionsRef.current.get(id)?.chartInstances || [],
+      chartInstances: existing?.chartInstances || [],
     });
 
-    setSections(Array.from(sectionsRef.current.values()));
+    if (!pendingFlushRef.current) {
+      pendingFlushRef.current = true;
+      Promise.resolve().then(() => {
+        pendingFlushRef.current = false;
+        setSections(Array.from(sectionsRef.current.values()));
+      });
+    }
   }, []);
 
   /**
@@ -65,6 +79,15 @@ export function ExportProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   /**
+   * Force-render all lazy sections and wait for charts to initialize
+   */
+  const prepareForExport = useCallback(async () => {
+    setForceRenderAll(true);
+    // Wait for lazy sections to mount and charts to initialize
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+  }, []);
+
+  /**
    * Start the export process
    */
   const startExport = useCallback(
@@ -77,6 +100,7 @@ export function ExportProvider({ children }: { children: React.ReactNode }) {
       });
 
       try {
+        await prepareForExport();
         await exportDashboard(Array.from(sectionsRef.current.values()), {
           selectedSectionIds,
           onProgress: setExportProgress,
@@ -89,6 +113,7 @@ export function ExportProvider({ children }: { children: React.ReactNode }) {
           percent: 0,
         });
       } finally {
+        setForceRenderAll(false);
         // Reset after a delay to show completion message
         resetTimeoutRef.current = window.setTimeout(() => {
           setIsExporting(false);
@@ -97,7 +122,7 @@ export function ExportProvider({ children }: { children: React.ReactNode }) {
         }, 2000);
       }
     },
-    []
+    [prepareForExport]
   );
 
   // Cleanup timeout on unmount
@@ -118,6 +143,7 @@ export function ExportProvider({ children }: { children: React.ReactNode }) {
     startExport,
     exportProgress,
     isExporting,
+    forceRenderAll,
   };
 
   return (
@@ -146,11 +172,10 @@ export function useExportSection(id: string, label: string) {
   const { registerSection, unregisterSection } = useExportManager();
 
   // Use a callback ref to ensure we capture the element when it's mounted
+  // Always register (even with null element) so lazy sections appear in export/visibility lists
   const callbackRef = React.useCallback(
     (element: HTMLDivElement | null) => {
-      if (element) {
-        registerSection(id, label, element);
-      }
+      registerSection(id, label, element);
     },
     [id, label, registerSection]
   );

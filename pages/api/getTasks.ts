@@ -1,4 +1,5 @@
-import { TodoistApi, Project, Task } from "@doist/todoist-api-typescript";
+import { TodoistApi } from "@doist/todoist-api-typescript";
+import type { Task as SdkTask, PersonalProject, WorkspaceProject } from "@doist/todoist-api-typescript";
 import { getToken } from 'next-auth/jwt';
 import { MAX_TASKS, INITIAL_BATCH_SIZE } from "../../utils/constants";
 import type { NextApiRequest, NextApiResponse } from 'next';
@@ -7,8 +8,6 @@ import path from 'path';
 import { promises as fs } from 'fs';
 import type {
   CompletedTask,
-  TodoistStats,
-  TodoistUser,
   LoadMoreResponse,
   ErrorResponse,
   DashboardData,
@@ -39,60 +38,57 @@ class ValidationError extends Error {
 }
 
 async function loadDummyDataset(): Promise<ApiResponse> {
-  const datasetPath = path.join(process.cwd(), 'test/data/dummy-dataset.json');
+  const datasetPath = path.join(process.cwd(), 'test/data/fake-dataset.json');
 
   try {
     const fileContents = await fs.readFile(datasetPath, 'utf-8');
     return JSON.parse(fileContents) as ApiResponse;
   } catch (error) {
     console.error('Failed to load dummy dataset at', datasetPath, error);
-    throw new Error('Fake dataset not found. Create test/data/dummy-dataset.json or disable USE_DUMMY_DATA.');
+    throw new Error('Fake dataset not found. Create test/data/fake-dataset.json or disable USE_DUMMY_DATA.');
   }
 }
 
-// Map Todoist API Task to our ActiveTask type
-const mapToActiveTask = (task: Task): ActiveTask => ({
-  ...task,
-  deadline: task.due?.date || null
+// Map Todoist API v1 Task to our ActiveTask type
+const mapToActiveTask = (task: SdkTask): ActiveTask => ({
+  assigneeId: task.responsibleUid || null,
+  assignerId: task.assignedByUid || null,
+  commentCount: task.noteCount,
+  content: task.content,
+  createdAt: task.addedAt || '',
+  creatorId: task.userId,
+  description: task.description,
+  due: task.due ? {
+    isRecurring: task.due.isRecurring,
+    string: task.due.string,
+    date: task.due.date,
+    datetime: task.due.datetime ?? null,
+    timezone: task.due.timezone ?? null,
+  } : null,
+  id: task.id,
+  isCompleted: task.checked,
+  labels: task.labels,
+  order: task.childOrder,
+  parentId: task.parentId || null,
+  priority: task.priority,
+  projectId: task.projectId,
+  sectionId: task.sectionId || null,
+  url: task.url,
+  deadline: task.deadline?.date || null,
 });
 
-// Map Todoist API Project to our ProjectData type
-const mapToProjectData = (project: Project): ProjectData => ({
-  ...project,
-  parentId: project.parentId || null
+// Map Todoist API v1 Project to our ProjectData type
+const mapToProjectData = (project: PersonalProject | WorkspaceProject): ProjectData => ({
+  id: project.id,
+  name: project.name,
+  color: project.color,
+  parentId: 'parentId' in project ? project.parentId || null : null,
+  order: project.childOrder,
+  isFavorite: project.isFavorite,
+  isShared: project.isShared,
+  viewStyle: project.viewStyle,
+  url: project.url,
 });
-
-async function getTotalTaskCount(token: string): Promise<number> {
-  try {
-    const response = await fetchWithRetry(
-      'https://api.todoist.com/sync/v9/completed/get_stats',
-      {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
-        maxRetries: 3
-      }
-    );
-
-    if (!response.ok) {
-      const errorText = await response.text().catch(() => 'No error details available');
-      throw new TodoistAPIError(
-        response.status,
-        `Failed to fetch task count: ${response.status} ${response.statusText}. ${errorText}`
-      );
-    }
-
-    const data = await response.json() as TodoistStats;
-    if (typeof data.completed_count !== 'number') {
-      throw new Error('Invalid response: completed_count is not a number');
-    }
-
-    return data.completed_count;
-  } catch (error) {
-    console.error('Error getting total task count:', error);
-    throw error; // Propagate error to be handled by the main handler
-  }
-}
 
 async function fetchCompletedTasksBatch(
   token: string,
@@ -107,18 +103,17 @@ async function fetchCompletedTasksBatch(
     throw new ValidationError('Invalid limit: must be a positive integer');
   }
 
+  const params = new URLSearchParams({
+    limit: String(Math.min(limit, 50)),
+    offset: String(offset),
+  });
+
   const response = await fetchWithRetry(
-    'https://api.todoist.com/sync/v9/completed/get_all',
+    `https://api.todoist.com/api/v1/tasks/completed?${params}`,
     {
-      method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
       },
-      body: JSON.stringify({
-        limit,
-        offset
-      }),
       maxRetries: 3
     }
   );
@@ -132,11 +127,29 @@ async function fetchCompletedTasksBatch(
   }
 
   const data = await response.json();
-  if (!Array.isArray(data.items)) {
-    throw new Error('Invalid response: items is not an array');
+  const tasks = data.tasks ?? data.items;
+  if (!Array.isArray(tasks)) {
+    throw new Error('Invalid response: tasks is not an array');
   }
 
-  return data.items;
+  // Map v1 API response to CompletedTask format for compatibility
+  // The v1 API uses camelCase (completedAt, projectId) but we map to the legacy snake_case format
+  return tasks.map((task: Record<string, string>): CompletedTask => ({
+    completed_at: task.completed_at ?? task.completedAt ?? '',
+    content: task.content ?? '',
+    id: task.id ?? '',
+    item_object: null,
+    meta_data: null,
+    note_count: 0,
+    notes: [],
+    project_id: task.project_id ?? task.projectId ?? '',
+    section_id: task.section_id ?? task.sectionId ?? '',
+    task_id: task.task_id ?? task.id ?? '',
+    user_id: task.user_id ?? task.userId ?? '',
+    v2_project_id: task.project_id ?? task.projectId ?? '',
+    v2_section_id: task.section_id ?? task.sectionId ?? '',
+    v2_task_id: task.task_id ?? task.id ?? '',
+  }));
 }
 
 export default async function handler(
@@ -189,51 +202,40 @@ export default async function handler(
       }
     }
 
-    // Get user data (includes karma)
-    const userResponse = await fetchWithRetry(`https://api.todoist.com/sync/v9/user`, {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
-      maxRetries: 3
-    });
-
-    if (!userResponse.ok) {
-      throw new TodoistAPIError(
-        userResponse.status,
-        `Failed to fetch user data: ${userResponse.status} ${userResponse.statusText}`
-      );
-    }
-
-    const userData = await userResponse.json() as TodoistUser;
-
-    // Fetch other required data
-    const [totalCount, projects, tasks, labels] = await Promise.all([
-      getTotalTaskCount(accessToken),
+    // Fetch all data in parallel using the SDK + manual completed tasks fetch
+    const [currentUser, productivityStats, projectsResponse, tasksResponse, labelsResponse, initialTasks] = await Promise.all([
+      api.getUser(),
+      api.getProductivityStats(),
       api.getProjects(),
       api.getTasks(),
-      api.getLabels()
+      api.getLabels(),
+      fetchCompletedTasksBatch(accessToken, 0, INITIAL_BATCH_SIZE),
     ]);
 
-    const initialTasks = await fetchCompletedTasksBatch(accessToken, 0, INITIAL_BATCH_SIZE);
+    const totalCount = productivityStats.completedCount;
 
-    // Map projects to our internal format
-    const projectData = projects.map(mapToProjectData);
-
-    // Map active tasks to our internal format
-    const activeTasks = tasks.map(mapToActiveTask);
+    // Map SDK types to our internal format
+    const projectData = projectsResponse.results.map(mapToProjectData);
+    const activeTasks = tasksResponse.results.map(mapToActiveTask);
 
     const responseData: ApiResponse = {
       allCompletedTasks: initialTasks,
       projectData,
       activeTasks,
-      labels,
+      labels: labelsResponse.results.map(l => ({
+        id: l.id,
+        name: l.name,
+        color: l.color,
+        order: l.order ?? 0,
+        isFavorite: l.isFavorite,
+      })),
       totalCompletedTasks: totalCount,
       hasMoreTasks: initialTasks.length < Math.min(totalCount, MAX_TASKS),
-      karma: userData.karma,
-      karmaRising: userData.karma_trend === 'up',
-      karmaTrend: userData.karma_trend as 'up' | 'down' | 'none',
-      dailyGoal: userData.daily_goal,
-      weeklyGoal: userData.weekly_goal
+      karma: currentUser.karma,
+      karmaRising: currentUser.karmaTrend === 'up',
+      karmaTrend: currentUser.karmaTrend as 'up' | 'down' | 'none',
+      dailyGoal: currentUser.dailyGoal,
+      weeklyGoal: currentUser.weeklyGoal,
     };
 
     response.status(200).json(responseData);
