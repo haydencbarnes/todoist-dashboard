@@ -1,10 +1,11 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import ReactECharts from 'echarts-for-react';
 import { EChartsOption, BarSeriesOption } from 'echarts';
 import { format } from 'date-fns';
 import { CompletedTask, ProjectData, TodoistColor } from '../types';
 import { calculateProjectVelocity, VelocityData } from '../utils/calculateProjectVelocity';
 import { FiArrowUp, FiArrowDown } from 'react-icons/fi';
+import { HiArrowsRightLeft } from 'react-icons/hi2';
 import { colorNameToHex } from '../utils/projectUtils';
 
 interface ProjectVelocityProps {
@@ -13,6 +14,7 @@ interface ProjectVelocityProps {
   timeIntervals?: number;
   intervalDays?: number;
   loading?: boolean;
+  comparisonTasks?: CompletedTask[] | undefined;
 }
 
 function ProjectVelocity({
@@ -20,8 +22,12 @@ function ProjectVelocity({
   projectData,
   timeIntervals = 4,
   intervalDays = 7,
-  loading = false
+  loading = false,
+  comparisonTasks,
 }: ProjectVelocityProps): JSX.Element {
+  const [showComparison, setShowComparison] = useState(false);
+  const hasComparisonData = comparisonTasks && comparisonTasks.length > 0;
+
   // Extract project names map (memoized for performance)
   const projectNames = useMemo(() => {
     const names: Record<string, string> = {};
@@ -89,6 +95,9 @@ function ProjectVelocity({
     };
   });
 
+  // Calculate previous period total for reference line
+  const previousPeriodTotal = showComparison && comparisonTasks ? comparisonTasks.length : null;
+
   // Reverse the data so that most recent is on the right
   intervalLabels.reverse();
   series.forEach(s => {
@@ -96,6 +105,28 @@ function ProjectVelocity({
       (s.data as number[]).reverse();
     }
   });
+
+  // Add markLine for previous period total if comparison is active
+  if (previousPeriodTotal !== null && series.length > 0) {
+    const firstSeries = series[0];
+    (firstSeries as any).markLine = {
+      silent: true,
+      symbol: 'none',
+      lineStyle: {
+        color: '#9CA3AF',
+        type: 'dashed',
+        width: 2,
+      },
+      label: {
+        formatter: `Prev: ${previousPeriodTotal}`,
+        color: '#9CA3AF',
+        fontSize: 10,
+      },
+      data: [
+        { yAxis: previousPeriodTotal / timeIntervals },
+      ],
+    };
+  }
 
   // Chart options
   const option: EChartsOption = {
@@ -164,7 +195,20 @@ function ProjectVelocity({
   return (
     <div className="flex flex-col">
       <div className="mb-4">
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {hasComparisonData && (
+            <button
+              onClick={() => setShowComparison(!showComparison)}
+              className={`p-1.5 rounded-lg border transition-all ${
+                showComparison
+                  ? 'bg-warm-blue/15 border-warm-blue text-warm-blue'
+                  : 'border-warm-border text-warm-gray hover:text-white hover:border-warm-gray'
+              }`}
+              title="Compare with previous period"
+            >
+              <HiArrowsRightLeft className="w-3.5 h-3.5" />
+            </button>
+          )}
           {velocityData.majorShifts.map((shift, index) => (
             <div
               key={shift.projectId + index}
@@ -198,6 +242,7 @@ function ProjectVelocity({
       <div className="h-[320px] w-full">
         <ReactECharts
           option={option}
+          notMerge={true}
           style={{ height: '100%', width: '100%' }}
           opts={{ renderer: 'svg' }}
         />

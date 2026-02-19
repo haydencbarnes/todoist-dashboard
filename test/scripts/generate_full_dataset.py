@@ -536,6 +536,91 @@ def generate_completed_tasks(completions: List[Tuple[datetime, str, str]], proje
     return completed_tasks
 
 
+def generate_recurring_completions(active_tasks: List[Dict]) -> List[Dict]:
+    """
+    Generate completed entries for recurring active tasks.
+
+    Recurring tasks stay active after completion, so the Todoist API returns
+    completed entries whose task_id matches the active task's id. This is the
+    link that calculateLeadTimeStats.ts uses to compute lead times.
+    """
+    now = datetime.now()
+    completed = []
+
+    # Map recurrence strings to approximate interval in days
+    def estimate_interval(recurrence: str) -> int:
+        r = recurrence.lower()
+        if "every day" in r or "every weekday" in r or "daily" in r:
+            return 1
+        if "monday,wednesday,friday" in r or "mon,wed,fri" in r:
+            return 2
+        if "every 3 days" in r:
+            return 3
+        if "every other" in r:
+            return 14
+        if "every sunday" in r or "every friday" in r or "every monday" in r:
+            return 7
+        if "every 1st" in r or "monthly" in r:
+            return 30
+        # Default: weekly
+        return 7
+
+    for task in active_tasks:
+        due = task.get("due")
+        if not due or not due.get("isRecurring"):
+            continue
+
+        recurrence_str = due.get("string", "")
+        interval = estimate_interval(recurrence_str)
+
+        created_at = datetime.strptime(task["createdAt"], "%Y-%m-%dT%H:%M:%S.%fZ")
+        project_id = task["projectId"]
+
+        # Determine project name for realistic completion times
+        project_name = task["content"]  # fallback
+        for tmpl in RECURRING_TEMPLATES:
+            if tmpl["content"] == task["content"]:
+                project_name = tmpl["project"]
+                break
+
+        # Walk from createdAt to now, generating completions at each interval
+        cursor = created_at + timedelta(days=interval)
+        while cursor < now:
+            # Add jitter: +/- 25% of interval, at least +/- 0.5 day
+            jitter = max(0.5, interval * 0.25)
+            offset_days = random.uniform(-jitter, jitter)
+            completion_date = cursor + timedelta(days=offset_days)
+
+            # Clamp to valid range
+            if completion_date < created_at:
+                completion_date = created_at + timedelta(hours=random.randint(1, 12))
+            if completion_date > now:
+                break
+
+            completion_dt = get_realistic_completion_time(completion_date, project_name)
+
+            completed.append({
+                "completed_at": completion_dt.strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
+                "content": task["content"],
+                "id": generate_task_id(),
+                "item_object": None,
+                "meta_data": None,
+                "note_count": 0,
+                "notes": [],
+                "project_id": project_id,
+                "section_id": None,
+                "task_id": task["id"],  # Critical: links to active task's id
+                "user_id": "test_user_123",
+                "v2_project_id": generate_v2_id(),
+                "v2_section_id": None,
+                "v2_task_id": generate_v2_id()
+            })
+
+            cursor += timedelta(days=interval)
+
+    return completed
+
+
 def generate_user_stats(num_completed_tasks: int) -> Dict:
     """Generate realistic user stats"""
     # Karma roughly correlates with completed tasks
@@ -582,6 +667,12 @@ def main():
     print("Generating active tasks...")
     active_tasks = generate_active_tasks(args.active_tasks, projects, labels)
     print(f"   - Generated {len(active_tasks)} active tasks")
+
+    # Generate completed entries for recurring tasks (for lead time analysis)
+    print("Generating recurring task completions...")
+    recurring_completions = generate_recurring_completions(active_tasks)
+    completed_tasks.extend(recurring_completions)
+    print(f"   - Generated {len(recurring_completions)} recurring completions")
 
     # Generate user stats
     print("Generating user stats...")

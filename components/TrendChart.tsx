@@ -1,12 +1,16 @@
 import { useEffect, useRef } from 'react';
 import * as echarts from 'echarts/core';
 import {
+  TooltipComponent,
   TooltipComponentOption,
+  GridComponent,
   GridComponentOption
 } from 'echarts/components';
-import { LineSeriesOption } from 'echarts/charts';
+import { LineChart, LineSeriesOption } from 'echarts/charts';
 import { CanvasRenderer } from 'echarts/renderers';
 import { CallbackDataParams } from 'echarts/types/dist/shared';
+
+echarts.use([CanvasRenderer, LineChart, TooltipComponent, GridComponent]);
 
 type ECOption = echarts.ComposeOption<
   TooltipComponentOption | GridComponentOption | LineSeriesOption
@@ -16,9 +20,10 @@ interface TrendChartProps {
   data: number[];
   labels: string[];
   height?: number;
+  comparisonData?: number[] | undefined;
 }
 
-const TrendChart: React.FC<TrendChartProps> = ({ data, labels, height = 200 }) => {
+const TrendChart: React.FC<TrendChartProps> = ({ data, labels, height = 200, comparisonData }) => {
   const chartRef = useRef<HTMLDivElement>(null);
   const chartInstance = useRef<echarts.ECharts>();
 
@@ -28,9 +33,7 @@ const TrendChart: React.FC<TrendChartProps> = ({ data, labels, height = 200 }) =
 
     // Initialize ECharts instance if it doesn't exist
     if (!chartInstance.current) {
-      chartInstance.current = echarts.init(chartRef.current, {
-        renderer: CanvasRenderer
-      });
+      chartInstance.current = echarts.init(chartRef.current);
     }
 
     // Chart options
@@ -80,7 +83,22 @@ const TrendChart: React.FC<TrendChartProps> = ({ data, labels, height = 200 }) =
               { offset: 1, color: 'rgba(139, 180, 232, 0.0)' }
             ])
           }
-        }
+        },
+        ...(comparisonData && comparisonData.length > 0 ? [{
+          data: comparisonData,
+          type: 'line' as const,
+          smooth: true,
+          symbol: 'none' as const,
+          lineStyle: {
+            color: '#9CA3AF',
+            width: 2,
+            type: 'dashed' as const,
+          },
+          areaStyle: {
+            opacity: 0.05,
+            color: '#9CA3AF',
+          },
+        }] : [])
       ],
       tooltip: {
         trigger: 'axis',
@@ -88,11 +106,15 @@ const TrendChart: React.FC<TrendChartProps> = ({ data, labels, height = 200 }) =
         borderColor: '#4B5563',
         textStyle: { color: '#E5E7EB' },
         formatter: function(params: CallbackDataParams | CallbackDataParams[]): string {
-          const data = Array.isArray(params) ? params[0] : params;
-          if (!data || typeof data.value === 'undefined' || !data.name) {
+          const items = Array.isArray(params) ? params : [params];
+          if (!items[0] || typeof items[0].value === 'undefined' || !items[0].name) {
             return '';
           }
-          return `${data.name}: ${data.value} tasks`;
+          let html = `${items[0].name}: ${items[0].value} tasks`;
+          if (items[1] && typeof items[1].value !== 'undefined') {
+            html += `<br/>Previous: ${items[1].value} tasks`;
+          }
+          return html;
         }
       }
     };
@@ -117,7 +139,7 @@ const TrendChart: React.FC<TrendChartProps> = ({ data, labels, height = 200 }) =
         chartInstance.current = undefined;
       }
     };
-  }, [data, labels]);
+  }, [data, labels, comparisonData]);
 
   return <div ref={chartRef} style={{ width: '100%', height: `${height}px` }} />;
 };

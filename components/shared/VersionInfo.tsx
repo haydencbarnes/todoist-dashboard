@@ -10,6 +10,9 @@ const CHANGELOG = [
     version: '0.11.0',
     date: 'February 2026',
     changes: [
+      'Added per-chart period comparison toggles for trend and velocity charts',
+      'Added lazy section rendering with skeleton placeholders for faster initial load',
+      'Code-split heavy chart components via dynamic imports',
       'Migrated from Todoist Sync API v9 to REST API v1',
       'Upgraded @doist/todoist-api-typescript from v3 to v6.5',
       'Raised completed task fetch limit from 2,500 to 10,000 for multi-year analytics',
