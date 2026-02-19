@@ -2,10 +2,19 @@ import React, { useState } from 'react';
 import { FaTimes } from 'react-icons/fa';
 
 // Current version number
-const APP_VERSION = '0.10.2';
+const APP_VERSION = '0.11.0';
 
 // Changelog entries - newest first
 const CHANGELOG = [
+  {
+    version: '0.11.0',
+    date: 'February 2026',
+    changes: [
+      'Migrated from Todoist Sync API v9 to REST API v1',
+      'Upgraded @doist/todoist-api-typescript from v3 to v6.5',
+      'Raised completed task fetch limit from 2,500 to 10,000 for multi-year analytics',
+    ]
+  },
   {
     version: '0.10.2',
     date: 'December 2025',

@@ -41,7 +41,7 @@ python generate_full_dataset.py [OPTIONS]
 | `--active-tasks` | 75 | Number of active tasks |
 | `--completed-tasks` | 1500 | Number of completed tasks |
 | `--months` | 12 | Months of history to generate |
-| `--output` | `../data/dummy-dataset.json` | Output file path |
+| `--output` | `../data/fake-dataset.json` | Output file path |
 
 #### Examples:
 
@@ -62,7 +62,7 @@ python generate_full_dataset.py --projects 3 --active-tasks 25 --completed-tasks
 
 #### Output:
 
-Generates `test/data/dummy-dataset.json` with the following structure:
+Generates `test/data/fake-dataset.json` with the following structure:
 
 ```json
 {

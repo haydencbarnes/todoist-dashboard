@@ -6,19 +6,17 @@ interface Task {
   completed_at: string;
 }
 
+interface StreakData {
+  count: number;
+  start: string;
+  end: string;
+}
+
 interface Goals {
-  current_daily_streak?: {
-    count: number;
-  };
-  max_daily_streak?: {
-    count: number;
-  };
-  current_weekly_streak?: {
-    count: number;
-  };
-  max_weekly_streak?: {
-    count: number;
-  };
+  current_daily_streak?: StreakData;
+  max_daily_streak?: StreakData;
+  current_weekly_streak?: StreakData;
+  max_weekly_streak?: StreakData;
 }
 
 interface StatsData {
@@ -127,7 +125,7 @@ const GoalProgress: React.FC<GoalProgressProps> = ({ allData }) => {
   // Calculate achievement metrics
   const totalCompleted = actualCompletions.reduce((a, b) => a + b, 0);
 
-  // Get streak data from the API
+  // Get streak data from the API (v1 stats API uses snake_case)
   const currentDailyStreak = goals?.current_daily_streak?.count || 0;
   const bestDailyStreak = goals?.max_daily_streak?.count || 0;
   const currentWeeklyStreak = goals?.current_weekly_streak?.count || 0;
