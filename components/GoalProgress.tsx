@@ -133,8 +133,8 @@ const GoalProgress: React.FC<GoalProgressProps> = ({ allData }) => {
 
   return (
     <>
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 print:gap-6">
-        {error && <div className="text-warm-peach">{error}</div>}
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 print:gap-6">
+        {error && <div className="text-warm-danger">{error}</div>}
         <MetricCard
           title="30-Day Total"
           value={totalCompleted}

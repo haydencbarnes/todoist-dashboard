@@ -20,6 +20,7 @@ const Header: React.FC<HeaderProps> = ({ user }) => {
           <div className="flex items-center gap-4">
             <span className="text-sm text-warm-gray">{user.email}</span>
             <button
+              type="button"
               onClick={handleSignOut}
               className="px-4 py-2 text-sm text-white bg-warm-peach rounded-xl hover:opacity-90 transition-opacity font-medium"
             >

@@ -2,6 +2,8 @@ import React from 'react';
 import ReactECharts from 'echarts-for-react';
 import { EChartsOption } from 'echarts';
 import { ActiveTask } from '../types';
+import Spinner from './shared/Spinner';
+import { CHART_TOOLTIP, WARM_GRAY, WARM_BLUE, WARM_PEACH, WARM_PEACH_DARK, WARM_BLACK, TEXT_PRIMARY } from '../utils/chartTheme';
 
 interface TaskPriorityProps {
   activeTasks: ActiveTask[];
@@ -26,10 +28,10 @@ interface ChartDataItem {
 }
 
 const PRIORITY_COLORS: PriorityColors = {
-  1: '#9CA3AF',  // warm-gray for p4
-  2: '#8BB4E8',  // warm-blue for p3
-  3: '#FF9B71',  // warm-peach for p2
-  4: '#FF7A3D',  // darker warm-peach for p1
+  1: WARM_GRAY,
+  2: WARM_BLUE,
+  3: WARM_PEACH,
+  4: WARM_PEACH_DARK,
 };
 
 const PRIORITY_LABELS: PriorityLabels = {
@@ -43,7 +45,7 @@ const TaskPriority: React.FC<TaskPriorityProps> = ({ activeTasks, loading }) => 
   if (!activeTasks || loading) {
     return (
       <div className="flex items-center justify-center h-[240px]">
-        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-warm-peach"></div>
+        <Spinner />
       </div>
     );
   }
@@ -68,12 +70,8 @@ const TaskPriority: React.FC<TaskPriorityProps> = ({ activeTasks, loading }) => 
     backgroundColor: 'transparent',
     tooltip: {
       trigger: 'item',
-      backgroundColor: 'rgba(26, 26, 26, 0.95)',
-      borderColor: '#374151',
+      ...CHART_TOOLTIP,
       borderWidth: 1,
-      textStyle: {
-        color: '#f3f4f6'
-      },
       formatter: (params: any) => {
         const percent = ((params.value / activeTasks.length) * 100).toFixed(1);
         return `${params.name}<br/>Tasks: ${params.value} (${percent}%)`;
@@ -85,21 +83,21 @@ const TaskPriority: React.FC<TaskPriorityProps> = ({ activeTasks, loading }) => 
       center: ['50%', '50%'],
       avoidLabelOverlap: true,
       itemStyle: {
-        borderColor: '#0D0D0D',
+        borderColor: WARM_BLACK,
         borderWidth: 2
       },
       label: {
         show: true,
         position: 'outer',
         formatter: '{b}: {c}',
-        color: '#9ca3af',
+        color: WARM_GRAY,
         fontSize: 11
       },
       emphasis: {
         label: {
           show: true,
           fontSize: 12,
-          color: '#f3f4f6'
+          color: TEXT_PRIMARY
         },
         itemStyle: {
           shadowBlur: 10,

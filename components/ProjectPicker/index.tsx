@@ -50,8 +50,9 @@ const ProjectPicker: React.FC<ProjectPickerProps> = ({
   return (
     <div className={`relative ${isOpen ? 'z-50' : 'z-10'}`} ref={dropdownRef}>
       <button
+        type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className={`flex items-center gap-2 px-4 py-2.5 sm:py-2 text-sm rounded-lg transition-colors duration-200 border backdrop-blur-sm ${fullWidth ? 'w-full' : 'w-full sm:w-auto sm:min-w-[160px]'} justify-between ${isActiveFilter
+        className={`flex items-center gap-2 px-4 py-2.5 sm:py-2 text-sm rounded-lg transition-colors duration-200 border ${fullWidth ? 'w-full' : 'w-full sm:w-auto sm:min-w-[160px]'} justify-between ${isActiveFilter
           ? 'bg-warm-peach/10 hover:bg-warm-peach/20 border-warm-peach text-warm-peach'
           : 'bg-warm-hover hover:bg-warm-card border-warm-border text-white'
           }`}
@@ -99,7 +100,7 @@ const ProjectPicker: React.FC<ProjectPickerProps> = ({
                     <div
                       className={`bg-${getColorClass(project.color as TodoistColor)} w-3 h-3 rounded-sm flex-shrink-0 mt-1`}
                     />
-                    <span className="text-white break-words">{project.name}</span>
+                    <span className="text-white break-words line-clamp-2">{project.name}</span>
                   </div>
                 </label>
               ))}

@@ -131,8 +131,10 @@ export default function RecentlyCompletedList({ allData }: RecentlyCompletedList
           numOfTasks={numOfTasks}
         />
         <button
+          type="button"
           onClick={handlePrint}
-          className="hidden sm:flex px-4 py-2 bg-warm-hover hover:bg-warm-peach text-white rounded-lg transition-colors duration-200 items-center space-x-2 print:hidden border border-warm-border"
+          aria-label="Print completed tasks"
+          className="hidden sm:flex px-4 py-2 bg-warm-hover hover:bg-warm-peach text-white rounded-lg transition-colors duration-200 items-center space-x-2 print:hidden border border-warm-border focus:outline-none focus:ring-2 focus:ring-warm-peach focus:ring-offset-2 focus:ring-offset-warm-card"
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -191,8 +193,10 @@ export default function RecentlyCompletedList({ allData }: RecentlyCompletedList
             </div>
           )}
           <button
+            type="button"
             onClick={handlePrint}
-            className="sm:hidden px-4 py-2 bg-warm-hover hover:bg-warm-peach text-white rounded-lg transition-colors duration-200 flex items-center space-x-2 print:hidden ml-auto border border-warm-border"
+            aria-label="Print completed tasks"
+            className="sm:hidden px-4 py-2 bg-warm-hover hover:bg-warm-peach text-white rounded-lg transition-colors duration-200 flex items-center space-x-2 print:hidden ml-auto border border-warm-border focus:outline-none focus:ring-2 focus:ring-warm-peach focus:ring-offset-2 focus:ring-offset-warm-card"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"

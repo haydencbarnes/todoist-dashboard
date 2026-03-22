@@ -5,27 +5,13 @@
 
 import React, { memo } from 'react';
 import { Tooltip } from 'react-tooltip';
-import { BsQuestionCircle } from 'react-icons/bs';
 import { calculateMostProductiveDay } from '../../utils/calculateMostProductiveDay';
 import { calculateMostProductiveTimeOfDay } from '../../utils/calculateMostProductiveTimeOfDay';
 import { calculateMostProductiveDayOfWeek } from '../../utils/calculateMostProductiveDayOfWeek';
 import { calculateCompletionRates } from '../../utils/calculateCompletionRates';
 import { getDayOfWeekName, DayOfWeek } from '../../utils/getDayOfWeekName';
+import QuestionMark from '../shared/QuestionMark';
 import { CompletedTask } from '../../types';
-
-type QuestionMarkProps = {
-  content: string;
-};
-
-const QuestionMark: React.FC<QuestionMarkProps> = memo(({ content }) => (
-  <BsQuestionCircle
-    className="inline-block ml-2 text-warm-gray hover:text-white cursor-help"
-    data-tooltip-id="productivity-tooltip"
-    data-tooltip-content={content}
-  />
-));
-
-QuestionMark.displayName = 'QuestionMark';
 
 type MetricCardProps = {
   icon: string;
@@ -73,12 +59,20 @@ const ProductivityScore: React.FC<ProductivityScoreProps> = ({ completedTasks, l
     )
   );
 
+  const getScoreLabel = (score: number): string => {
+    if (score >= 90) return 'Outstanding';
+    if (score >= 75) return 'Strong';
+    if (score >= 50) return 'Building momentum';
+    if (score >= 25) return 'Getting started';
+    return 'Room to grow';
+  };
+
   return (
     <div className={`flex flex-col md:flex-row gap-6 items-center ${loading ? 'opacity-50' : ''}`}>
       {/* Productivity Score */}
       <div className="text-center">
-        <div className="inline-block relative">
-          <svg className="w-40 h-40" viewBox="0 0 100 100">
+        <div className={`inline-block relative ${productivityScore > 80 ? 'ring-2 ring-warm-peach/30 ring-offset-4 ring-offset-warm-black rounded-full' : ''}`}>
+          <svg className="w-40 sm:w-48 h-40 sm:h-48" viewBox="0 0 100 100">
             <circle
               className="text-warm-border"
               strokeWidth="8"
@@ -89,7 +83,7 @@ const ProductivityScore: React.FC<ProductivityScoreProps> = ({ completedTasks, l
               cy="50"
             />
             <circle
-              className="text-warm-peach"
+              className="text-warm-peach transition-all duration-1000 ease-out"
               strokeWidth="8"
               strokeLinecap="round"
               stroke="currentColor"
@@ -101,13 +95,14 @@ const ProductivityScore: React.FC<ProductivityScoreProps> = ({ completedTasks, l
               transform="rotate(-90 50 50)"
             />
           </svg>
-          <div className="absolute inset-0 flex items-center justify-center">
-            <span className="text-4xl font-bold">{productivityScore}</span>
+          <div className="absolute inset-0 flex flex-col items-center justify-center">
+            <span className="text-5xl font-bold">{productivityScore}</span>
+            <span className="text-xs text-warm-gray mt-1">{getScoreLabel(productivityScore)}</span>
           </div>
         </div>
         <p className="text-xl mt-2">
           Productivity Score
-          <QuestionMark content="Your productivity score is based on your completion rates and task consistency" />
+          <QuestionMark content="Your productivity score is based on your completion rates and task consistency" tooltipId="productivity-tooltip" />
         </p>
       </div>
 
@@ -115,7 +110,7 @@ const ProductivityScore: React.FC<ProductivityScoreProps> = ({ completedTasks, l
       <div className="flex-1 bg-warm-card border border-warm-border p-6 rounded-2xl">
         <h3 className="text-xl font-semibold mb-4 flex items-center text-white">
           Key Metrics
-          <QuestionMark content="Overview of your most productive periods" />
+          <QuestionMark content="Overview of your most productive periods" tooltipId="productivity-tooltip" />
         </h3>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
           {mostProductiveDay && (

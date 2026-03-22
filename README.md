@@ -5,6 +5,9 @@
 
 A powerful dashboard for Todoist users that provides deep insights into task management and productivity patterns. Visualize your most productive days and times, track task completion trends over time, and gain insights into your focus areas. Built with Next.js, React, and Tailwind CSS.
 
+> [!NOTE]
+> I no longer use Todoist, but I continue to maintain this project for fun. It's completely free and open source - no ads, no subscriptions, no monetization. If you find it useful and want to show support, you can [buy me a coffee](https://buymeacoffee.com/azurd) ☕
+
 ## Features
 
 - 📊 Comprehensive task analytics and insights

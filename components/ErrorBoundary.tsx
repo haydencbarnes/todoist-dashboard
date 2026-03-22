@@ -30,8 +30,8 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
   override render(): React.ReactNode {
     if (this.state.hasError) {
       return (
-        <div className="w-full p-6 bg-warm-peach/10 border border-warm-peach/30 rounded-lg">
-          <h3 className="text-xl font-semibold text-warm-peach mb-2">
+        <div className="w-full p-6 bg-warm-danger/10 border border-warm-danger/30 rounded-lg">
+          <h3 className="text-xl font-semibold text-warm-danger mb-2">
             {this.props.fallbackText || 'Something went wrong'}
           </h3>
           <p className="text-warm-gray">

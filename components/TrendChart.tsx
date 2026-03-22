@@ -9,6 +9,13 @@ import {
 import { LineChart, LineSeriesOption } from 'echarts/charts';
 import { CanvasRenderer } from 'echarts/renderers';
 import { CallbackDataParams } from 'echarts/types/dist/shared';
+import {
+  WARM_BLUE,
+  WARM_GRAY,
+  CHART_TOOLTIP,
+  AXIS_LINE,
+  SPLIT_LINE,
+} from '../utils/chartTheme';
 
 echarts.use([CanvasRenderer, LineChart, TooltipComponent, GridComponent]);
 
@@ -49,10 +56,10 @@ const TrendChart: React.FC<TrendChartProps> = ({ data, labels, height = 200, com
         type: 'category',
         data: labels,
         axisLine: {
-          lineStyle: { color: '#4B5563' }
+          ...AXIS_LINE,
         },
         axisLabel: {
-          color: '#9CA3AF',
+          color: WARM_GRAY,
           fontSize: 10,
           interval: 'auto'
         }
@@ -60,10 +67,10 @@ const TrendChart: React.FC<TrendChartProps> = ({ data, labels, height = 200, com
       yAxis: {
         type: 'value',
         splitLine: {
-          lineStyle: { color: '#374151' }
+          ...SPLIT_LINE,
         },
         axisLabel: {
-          color: '#9CA3AF',
+          color: WARM_GRAY,
           fontSize: 10
         }
       },
@@ -74,7 +81,7 @@ const TrendChart: React.FC<TrendChartProps> = ({ data, labels, height = 200, com
           smooth: true,
           symbol: 'none',
           lineStyle: {
-            color: '#8BB4E8',  // warm-blue
+            color: WARM_BLUE,
             width: 3
           },
           areaStyle: {
@@ -90,21 +97,19 @@ const TrendChart: React.FC<TrendChartProps> = ({ data, labels, height = 200, com
           smooth: true,
           symbol: 'none' as const,
           lineStyle: {
-            color: '#9CA3AF',
+            color: WARM_GRAY,
             width: 2,
             type: 'dashed' as const,
           },
           areaStyle: {
             opacity: 0.05,
-            color: '#9CA3AF',
+            color: WARM_GRAY,
           },
         }] : [])
       ],
       tooltip: {
         trigger: 'axis',
-        backgroundColor: 'rgba(26, 26, 26, 0.95)',
-        borderColor: '#4B5563',
-        textStyle: { color: '#E5E7EB' },
+        ...CHART_TOOLTIP,
         formatter: function(params: CallbackDataParams | CallbackDataParams[]): string {
           const items = Array.isArray(params) ? params : [params];
           if (!items[0] || typeof items[0].value === 'undefined' || !items[0].name) {

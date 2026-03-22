@@ -1,4 +1,3 @@
-import React from 'react';
 import ReactECharts from 'echarts-for-react';
 import { colorNameToHex } from "@/utils/projectUtils";
 import escapeHtml from '@/utils/escapeHtml';
@@ -10,6 +9,8 @@ import {
 import { BarSeriesOption } from 'echarts/charts';
 import { CallbackDataParams } from 'echarts/types/dist/shared';
 import { TodoistColor } from '../types';
+import Spinner from './shared/Spinner';
+import { CHART_TOOLTIP, AXIS_LABEL, AXIS_LINE, SPLIT_LINE } from '../utils/chartTheme';
 
 type ECOption = echarts.ComposeOption<
   TooltipComponentOption | GridComponentOption | BarSeriesOption
@@ -40,7 +41,7 @@ export default function ActiveTasksByProject({ projectData, activeTasks, loading
   if (!projectData || !activeTasks || loading) {
     return (
       <div className="flex items-center justify-center h-[240px]">
-        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-warm-peach"></div>
+        <Spinner />
       </div>
     );
   }
@@ -57,12 +58,8 @@ export default function ActiveTasksByProject({ projectData, activeTasks, loading
   const option: ECOption = {
     tooltip: {
       trigger: 'axis',
-      backgroundColor: 'rgba(26, 26, 26, 0.95)',
-      borderColor: '#374151',
+      ...CHART_TOOLTIP,
       borderWidth: 1,
-      textStyle: {
-        color: '#f3f4f6'
-      },
       formatter: function (params: CallbackDataParams | CallbackDataParams[]): string {
         const data = Array.isArray(params) ? params[0] : params;
         if (!data || typeof data.value === 'undefined' || !data.name) {
@@ -83,15 +80,13 @@ export default function ActiveTasksByProject({ projectData, activeTasks, loading
       type: 'category',
       data: projectsWithCounts.map(project => project.name),
       axisLabel: {
-        color: '#9ca3af',
+        ...AXIS_LABEL,
         fontSize: 11,
         rotate: 45,
         overflow: 'break'
       },
       axisLine: {
-        lineStyle: {
-          color: '#374151'
-        }
+        ...AXIS_LINE
       },
       axisTick: {
         show: false
@@ -100,12 +95,12 @@ export default function ActiveTasksByProject({ projectData, activeTasks, loading
     yAxis: {
       type: 'value',
       axisLabel: {
-        color: '#9ca3af',
+        ...AXIS_LABEL,
         fontSize: 11
       },
       splitLine: {
         lineStyle: {
-          color: '#374151',
+          ...SPLIT_LINE.lineStyle,
           type: 'dashed'
         }
       },

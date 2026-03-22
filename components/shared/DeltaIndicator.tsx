@@ -27,7 +27,7 @@ const DeltaIndicator: React.FC<DeltaIndicatorProps> = ({
     ? 'text-warm-gray bg-warm-gray/10'
     : isPositive
       ? 'text-warm-sage bg-warm-sage/10'
-      : 'text-warm-peach bg-warm-peach/10';
+      : 'text-warm-danger bg-warm-danger/10';
 
   const arrow = isNeutral ? '' : isPositive ? '\u2191' : '\u2193';
 

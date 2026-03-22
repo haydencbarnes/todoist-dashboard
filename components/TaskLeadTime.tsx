@@ -3,6 +3,8 @@ import ReactECharts from 'echarts-for-react';
 import { EChartsOption } from 'echarts';
 import { CompletedTask, ActiveTask } from '../types';
 import { calculateLeadTimeStats, LeadTimeStats } from '../utils/calculateLeadTimeStats';
+import Spinner from './shared/Spinner';
+import { CHART_TOOLTIP, AXIS_LABEL, AXIS_LINE, SPLIT_LINE, WARM_GRAY, WARM_PEACH, WARM_PEACH_LIGHT } from '../utils/chartTheme';
 
 interface TaskLeadTimeProps {
   completedTasks: CompletedTask[];
@@ -15,7 +17,7 @@ function TaskLeadTime({ completedTasks, activeTasks, loading = false }: TaskLead
   if (loading || !completedTasks || completedTasks.length === 0) {
     return (
       <div className="flex items-center justify-center h-[300px]">
-        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-warm-peach"></div>
+        <Spinner />
       </div>
     );
   }
@@ -31,12 +33,8 @@ function TaskLeadTime({ completedTasks, activeTasks, loading = false }: TaskLead
   const option: EChartsOption = {
     tooltip: {
       trigger: 'axis',
-      backgroundColor: 'rgba(26, 26, 26, 0.95)',
-      borderColor: '#374151',
+      ...CHART_TOOLTIP,
       borderWidth: 1,
-      textStyle: {
-        color: '#f3f4f6'
-      },
       formatter: (params: any) => {
         const data = Array.isArray(params) ? params[0] : params;
         if (!data) return '';
@@ -60,15 +58,13 @@ function TaskLeadTime({ completedTasks, activeTasks, loading = false }: TaskLead
       type: 'category',
       data: stats.buckets.map(bucket => bucket.name),
       axisLabel: {
-        color: '#9ca3af',
+        ...AXIS_LABEL,
         fontSize: 10,
         interval: 0,
         rotate: window?.innerWidth < 640 ? 30 : 0
       },
       axisLine: {
-        lineStyle: {
-          color: '#374151'
-        }
+        ...AXIS_LINE
       },
       axisTick: {
         show: false
@@ -78,15 +74,15 @@ function TaskLeadTime({ completedTasks, activeTasks, loading = false }: TaskLead
       type: 'value',
       name: 'Tasks',
       nameTextStyle: {
-        color: '#9ca3af'
+        color: WARM_GRAY
       },
       axisLabel: {
-        color: '#9ca3af',
+        ...AXIS_LABEL,
         fontSize: 10
       },
       splitLine: {
         lineStyle: {
-          color: '#374151',
+          ...SPLIT_LINE.lineStyle,
           opacity: 0.3
         }
       },
@@ -104,11 +100,11 @@ function TaskLeadTime({ completedTasks, activeTasks, loading = false }: TaskLead
         data: stats.buckets.map(bucket => bucket.count),
         itemStyle: {
           borderRadius: [4, 4, 0, 0],
-          color: '#FF9B71'  // warm-peach
+          color: WARM_PEACH
         },
         emphasis: {
           itemStyle: {
-            color: '#FFB599'  // lighter warm-peach
+            color: WARM_PEACH_LIGHT
           }
         }
       }

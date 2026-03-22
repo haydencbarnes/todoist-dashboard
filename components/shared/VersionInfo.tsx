@@ -2,10 +2,22 @@ import React, { useState } from 'react';
 import { FaTimes } from 'react-icons/fa';
 
 // Current version number
-const APP_VERSION = '0.11.0';
+const APP_VERSION = '0.12.0';
 
 // Changelog entries - newest first
 const CHANGELOG = [
+  {
+    version: '0.12.0',
+    date: 'March 2026',
+    changes: [
+      'Design polish: section group headers, visual hierarchy, and standardized typography',
+      'Semantic color tokens for errors and warnings, centralized chart theme',
+      'Milestone badges on streaks, contextual score labels, dynamic weekly greeting',
+      'Accessibility: focus traps, ARIA labels, keyboard navigation, responsive touch targets',
+      'Security: upgraded Next.js, flatted, and undici to patch vulnerabilities',
+      'Fix: overdue task calculation now uses local date comparison (thanks @haydencbarnes)',
+    ]
+  },
   {
     version: '0.11.0',
     date: 'February 2026',
@@ -128,7 +140,7 @@ const VersionInfo: React.FC = () => {
 
       {/* Changelog Modal */}
       {showModal && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-70 p-4">
+        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/70 p-4">
           <div className="bg-warm-card border border-warm-border rounded-lg w-full max-w-lg max-h-[80vh] overflow-y-auto shadow-xl">
             <div className="flex justify-between items-center p-4 border-b border-warm-border">
               <h2 className="text-xl font-semibold text-white">Changelog</h2>

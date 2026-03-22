@@ -5,24 +5,10 @@
 
 import React, { memo } from 'react';
 import { Tooltip } from 'react-tooltip';
-import { BsQuestionCircle } from 'react-icons/bs';
 import { calculateCompletionRates } from '../../utils/calculateCompletionRates';
 import { calculateCreatedTasks } from '../../utils/calculateCreatedTasks';
+import QuestionMark from '../shared/QuestionMark';
 import { CompletedTask, ProjectData } from '../../types';
-
-type QuestionMarkProps = {
-  content: string;
-};
-
-const QuestionMark: React.FC<QuestionMarkProps> = memo(({ content }) => (
-  <BsQuestionCircle
-    className="inline-block ml-2 text-warm-gray hover:text-white cursor-help"
-    data-tooltip-id="summary-tooltip"
-    data-tooltip-content={content}
-  />
-));
-
-QuestionMark.displayName = 'QuestionMark';
 
 type CompletionRates = {
   dailyCompletionRate: number;
@@ -69,7 +55,7 @@ const InsightsSummary: React.FC<InsightsSummaryProps> = ({
       <div className="bg-warm-card border border-warm-border p-6 rounded-2xl">
         <h3 className="text-xl font-semibold mb-6 text-white">
           Completion Rates
-          <QuestionMark content="Your task completion rates compared to your average performance" />
+          <QuestionMark content="Your task completion rates compared to your average performance" tooltipId="summary-tooltip" />
         </h3>
         <div className="space-y-6">
           {['daily', 'weekly', 'monthly'].map((period) => {
@@ -93,10 +79,10 @@ const InsightsSummary: React.FC<InsightsSummaryProps> = ({
               >
                 <span className="text-lg">{period.charAt(0).toUpperCase() + period.slice(1)}</span>
                 <div className="flex items-center flex-1 ml-4">
-                  <div className="w-full h-3 bg-warm-hover rounded-full mr-3">
+                  <div className="w-full h-3 bg-warm-hover rounded-full mr-3 overflow-hidden">
                     <div
-                      className={`h-full ${barColor} rounded-full transition-all duration-500`}
-                      style={{ width: `${Math.min(rate, 100)}%` }}
+                      className={`h-full ${barColor} rounded-full transition-transform duration-500 origin-left`}
+                      style={{ transform: `scaleX(${Math.min(rate, 100) / 100})` }}
                     />
                   </div>
                   <span className="text-lg font-semibold min-w-[3rem] text-right">
@@ -113,7 +99,7 @@ const InsightsSummary: React.FC<InsightsSummaryProps> = ({
       <div className="bg-warm-card border border-warm-border p-6 rounded-2xl">
         <h3 className="text-xl font-semibold mb-6 text-white">
           Project Distribution
-          <QuestionMark content="Distribution of completed tasks across your top projects" />
+          <QuestionMark content="Distribution of completed tasks across your top projects" tooltipId="summary-tooltip" />
         </h3>
         <div className="space-y-4">
           {projectStats.slice(0, 5).map((project) => (
@@ -149,7 +135,7 @@ const InsightsSummary: React.FC<InsightsSummaryProps> = ({
       <div className="bg-warm-card border border-warm-border p-6 rounded-2xl">
         <h3 className="text-xl font-semibold mb-10 text-white">
           Weekly Progress
-          <QuestionMark content="Number of tasks completed in the last 7 days" />
+          <QuestionMark content="Number of tasks completed in the last 7 days" tooltipId="summary-tooltip" />
         </h3>
         <div className="flex justify-between items-end h-48 px-2">
           {weeklyTasks.map((count: number, index: number) => {
@@ -172,8 +158,8 @@ const InsightsSummary: React.FC<InsightsSummaryProps> = ({
               >
                 <div className="relative w-full h-40 flex items-end justify-center">
                   <div
-                    className="absolute bottom-0 w-8 bg-warm-blue rounded-t transition-all duration-500"
-                    style={{ height: `${heightPercentage}%` }}
+                    className="w-8 bg-warm-blue rounded-t transition-transform duration-500 origin-bottom"
+                    style={{ height: '100%', transform: `scaleY(${heightPercentage / 100})` }}
                   />
                 </div>
                 <span className="mt-2 text-sm font-medium">{dayName}</span>

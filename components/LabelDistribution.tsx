@@ -11,6 +11,13 @@ import { CallbackDataParams } from 'echarts/types/dist/shared';
 import type { Label, ActiveTask, CompletedTask } from '../types';
 import { getLabelStats } from '@/utils/parseLabelsFromContent';
 import escapeHtml from '@/utils/escapeHtml';
+import Spinner from './shared/Spinner';
+import {
+  WARM_BORDER,
+  WARM_GRAY,
+  CHART_TOOLTIP,
+  AXIS_LINE,
+} from '../utils/chartTheme';
 
 type ECOption = echarts.ComposeOption<
   TooltipComponentOption | GridComponentOption | BarSeriesOption
@@ -45,7 +52,7 @@ function LabelDistribution({ activeTasks, completedTasks, labels, loading, viewM
   if (loading) {
     return (
       <div className="flex items-center justify-center h-[300px]">
-        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-warm-peach"></div>
+        <Spinner />
       </div>
     );
   }
@@ -74,12 +81,8 @@ function LabelDistribution({ activeTasks, completedTasks, labels, loading, viewM
       axisPointer: {
         type: 'shadow'
       },
-      backgroundColor: 'rgba(26, 26, 26, 0.95)',
-      borderColor: '#374151',
+      ...CHART_TOOLTIP,
       borderWidth: 1,
-      textStyle: {
-        color: '#f3f4f6'
-      },
       formatter: function (params: CallbackDataParams | CallbackDataParams[]): string {
         const dataArr = Array.isArray(params) ? params : [params];
         const firstItem = dataArr[0];
@@ -110,12 +113,12 @@ Total: ${stat.total}`;
     xAxis: {
       type: 'value',
       axisLabel: {
-        color: '#9ca3af',
+        color: WARM_GRAY,
         fontSize: 11
       },
       splitLine: {
         lineStyle: {
-          color: '#374151',
+          color: WARM_BORDER,
           type: 'dashed'
         }
       },
@@ -131,14 +134,12 @@ Total: ${stat.total}`;
       data: labelStats.map(stat => stat.label.name),
       inverse: true, // Show highest at top
       axisLabel: {
-        color: '#9ca3af',
+        color: WARM_GRAY,
         fontSize: 11,
         formatter: (value: string) => `@${value}`
       },
       axisLine: {
-        lineStyle: {
-          color: '#374151'
-        }
+        ...AXIS_LINE,
       },
       axisTick: {
         show: false
@@ -173,7 +174,7 @@ Total: ${stat.total}`;
       label: {
         show: true,
         position: 'right',
-        color: '#9ca3af',
+        color: WARM_GRAY,
         fontSize: 11,
         formatter: '{c}'
       }

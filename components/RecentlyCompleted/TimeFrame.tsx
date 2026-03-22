@@ -32,6 +32,7 @@ export default function TimeFrame({
             <div className="text-warm-border mx-2">/</div>
           )}
           <button
+            type="button"
             onClick={() => handleFilterClick(filter.id)}
             className={`px-3 py-1.5 rounded-lg transition-all duration-200 ${
               currentFilter === filter.id

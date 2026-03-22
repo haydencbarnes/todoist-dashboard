@@ -186,10 +186,11 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({
   return (
     <div className={`relative z-10 ${styles.dateRangePicker}`} ref={dropdownRef}>
       <button
+        type="button"
         ref={triggerButtonRef}
         onClick={() => setIsOpen(!isOpen)}
         onKeyDown={handleTriggerKeyDown}
-        className={`flex items-center gap-2 px-4 py-2.5 sm:py-2 text-sm rounded-lg transition-colors duration-200 border backdrop-blur-sm ${fullWidth ? 'w-full' : 'w-full sm:w-auto sm:min-w-[160px] sm:max-w-[280px]'} justify-between ${
+        className={`flex items-center gap-2 px-4 py-2.5 sm:py-2 text-sm rounded-lg transition-colors duration-200 border  ${fullWidth ? 'w-full' : 'w-full sm:w-auto sm:min-w-[160px] sm:max-w-[280px]'} justify-between ${
           isActiveFilter
             ? 'bg-warm-peach/10 hover:bg-warm-peach/20 border-warm-peach text-warm-peach'
             : 'bg-warm-hover hover:bg-warm-card border-warm-border text-white'
@@ -216,7 +217,7 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: animationDuration }}
-            className={`absolute left-0 top-full mt-2 py-3 bg-warm-card rounded-lg shadow-lg border border-warm-border backdrop-blur-sm ${fullWidth ? 'right-0 w-full' : 'sm:right-0 w-full sm:w-80'}`}
+            className={`absolute left-0 top-full mt-2 py-3 bg-warm-card rounded-lg shadow-lg border border-warm-border  ${fullWidth ? 'right-0 w-full' : 'sm:right-0 w-full sm:w-80'}`}
             role="menu"
             aria-label="Date range filter options"
           >
@@ -224,6 +225,7 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({
             <div className="px-3 space-y-1">
               {PRESETS.map((preset, index) => (
                 <button
+                  type="button"
                   key={preset}
                   onClick={() => handlePresetClick(preset)}
                   onKeyDown={(e) => handlePresetKeyDown(e, index)}
@@ -247,6 +249,7 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({
                 <div className="my-3 border-t border-warm-border" />
                 <div className="px-3">
                   <button
+                    type="button"
                     onClick={() => {
                       handlePresetClick('all');
                     }}
@@ -337,6 +340,7 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({
                 )}
 
                 <button
+                  type="button"
                   onClick={handleApplyCustomRange}
                   disabled={!customStart || !customEnd}
                   className="w-full px-3 py-2 mt-2 bg-warm-peach hover:bg-warm-peach/90 text-white rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"

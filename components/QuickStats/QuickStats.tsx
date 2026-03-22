@@ -41,7 +41,7 @@ const StatCard: React.FC<{ stat: StatItem }> = ({ stat }) => {
     <div className="bg-warm-card rounded-2xl p-6 border border-warm-border hover:bg-warm-hover hover:shadow-lg transition-all">
       <h3 className="text-sm text-warm-gray mb-3 font-medium">{stat.label}</h3>
       <div className="flex items-center gap-3">
-        <div className={`text-4xl font-semibold ${colorClassMap[stat.color]}`}>
+        <div className={`text-2xl sm:text-4xl font-semibold ${colorClassMap[stat.color]}`}>
           {animatedValue.toLocaleString()}
         </div>
         {stat.trend && (
@@ -98,7 +98,7 @@ const QuickStats: React.FC<QuickStatsProps> = ({
   ];
 
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
       {stats.map((stat) => (
         <StatCard key={stat.label} stat={stat} />
       ))}

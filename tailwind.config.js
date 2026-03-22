@@ -40,6 +40,8 @@ module.exports = {
         'warm-sage': '#7FD49E',
         'warm-blue': '#8BB4E8',
         'warm-gray': '#9CA3AF',
+        'warm-danger': '#E57373',
+        'warm-warning': '#FFB74D',
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],

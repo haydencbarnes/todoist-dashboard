@@ -3,7 +3,7 @@
  * Modal for selecting sections and triggering export
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { HiX, HiDownload, HiCheckCircle, HiXCircle } from 'react-icons/hi';
 import { useExportManager } from '../../hooks/useExportManager';
 import { trackExport } from '@/utils/analytics';
@@ -78,17 +78,41 @@ export default function ExportModal({ isOpen, onClose }: ExportModalProps) {
     }
   }, [exportProgress?.stage, selectedSections.size]);
 
+  const modalRef = useRef<HTMLDivElement>(null);
+
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Escape' && !isExporting) {
+      onClose();
+      return;
+    }
+    if (e.key !== 'Tab') return;
+    const focusables = modalRef.current?.querySelectorAll<HTMLElement>(
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+    );
+    if (!focusables || focusables.length <= 1) return;
+    const first = focusables[0];
+    const last = focusables[focusables.length - 1];
+    if (!first || !last) return;
+    if (e.shiftKey && document.activeElement === first) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault();
+      first.focus();
+    }
+  }, [isExporting, onClose]);
+
   if (!isOpen) {
     return null;
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-75">
-      <div className="bg-warm-card rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col border border-warm-border">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75" onKeyDown={handleKeyDown}>
+      <div ref={modalRef} role="dialog" aria-modal="true" aria-labelledby="export-modal-title" className="bg-warm-card rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col border border-warm-border">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-warm-border">
           <div>
-            <h2 className="text-2xl font-bold text-white">
+            <h2 id="export-modal-title" className="text-2xl font-bold text-white">
               Export Dashboard
             </h2>
             <p className="text-sm text-warm-gray mt-1">
@@ -96,6 +120,7 @@ export default function ExportModal({ isOpen, onClose }: ExportModalProps) {
             </p>
           </div>
           <button
+            type="button"
             onClick={handleClose}
             disabled={isExporting}
             className="text-warm-gray hover:text-white transition-colors disabled:opacity-50"
@@ -112,12 +137,14 @@ export default function ExportModal({ isOpen, onClose }: ExportModalProps) {
               {/* Quick Actions */}
               <div className="flex gap-2 mb-4">
                 <button
+                  type="button"
                   onClick={selectAll}
                   className="text-sm px-3 py-1 rounded-lg bg-warm-hover hover:bg-warm-card text-white transition-colors border border-warm-border"
                 >
                   Select All
                 </button>
                 <button
+                  type="button"
                   onClick={deselectAll}
                   className="text-sm px-3 py-1 rounded-lg bg-warm-hover hover:bg-warm-card text-white transition-colors border border-warm-border"
                 >
@@ -206,6 +233,7 @@ export default function ExportModal({ isOpen, onClose }: ExportModalProps) {
 
                 {exportProgress?.stage === 'error' && (
                   <button
+                    type="button"
                     onClick={handleClose}
                     className="mt-6 px-6 py-2 bg-warm-peach hover:opacity-90 text-white rounded-lg transition-colors"
                   >
@@ -225,12 +253,14 @@ export default function ExportModal({ isOpen, onClose }: ExportModalProps) {
             </div>
             <div className="flex gap-3">
               <button
+                type="button"
                 onClick={handleClose}
                 className="px-4 py-2 text-warm-gray hover:text-white transition-colors"
               >
                 Cancel
               </button>
               <button
+                type="button"
                 onClick={handleExport}
                 disabled={selectedSections.size === 0}
                 className="flex items-center gap-2 px-6 py-2 bg-warm-peach hover:opacity-90 text-white rounded-lg font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
