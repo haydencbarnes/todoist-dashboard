@@ -73,12 +73,20 @@ const ProductivityScore: React.FC<ProductivityScoreProps> = ({ completedTasks, l
     )
   );
 
+  const getScoreLabel = (score: number): string => {
+    if (score >= 90) return 'Outstanding';
+    if (score >= 75) return 'Strong';
+    if (score >= 50) return 'Building momentum';
+    if (score >= 25) return 'Getting started';
+    return 'Room to grow';
+  };
+
   return (
     <div className={`flex flex-col md:flex-row gap-6 items-center ${loading ? 'opacity-50' : ''}`}>
       {/* Productivity Score */}
       <div className="text-center">
-        <div className="inline-block relative">
-          <svg className="w-40 h-40" viewBox="0 0 100 100">
+        <div className={`inline-block relative ${productivityScore > 80 ? 'ring-2 ring-warm-peach/30 ring-offset-4 ring-offset-warm-black rounded-full' : ''}`}>
+          <svg className="w-40 sm:w-48 h-40 sm:h-48" viewBox="0 0 100 100">
             <circle
               className="text-warm-border"
               strokeWidth="8"
@@ -89,7 +97,7 @@ const ProductivityScore: React.FC<ProductivityScoreProps> = ({ completedTasks, l
               cy="50"
             />
             <circle
-              className="text-warm-peach"
+              className="text-warm-peach transition-all duration-1000 ease-out"
               strokeWidth="8"
               strokeLinecap="round"
               stroke="currentColor"
@@ -101,8 +109,9 @@ const ProductivityScore: React.FC<ProductivityScoreProps> = ({ completedTasks, l
               transform="rotate(-90 50 50)"
             />
           </svg>
-          <div className="absolute inset-0 flex items-center justify-center">
-            <span className="text-4xl font-bold">{productivityScore}</span>
+          <div className="absolute inset-0 flex flex-col items-center justify-center">
+            <span className="text-5xl font-bold">{productivityScore}</span>
+            <span className="text-xs text-warm-gray mt-1">{getScoreLabel(productivityScore)}</span>
           </div>
         </div>
         <p className="text-xl mt-2">

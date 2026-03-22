@@ -99,7 +99,7 @@ const ProjectPicker: React.FC<ProjectPickerProps> = ({
                     <div
                       className={`bg-${getColorClass(project.color as TodoistColor)} w-3 h-3 rounded-sm flex-shrink-0 mt-1`}
                     />
-                    <span className="text-white break-words">{project.name}</span>
+                    <span className="text-white break-words line-clamp-2">{project.name}</span>
                   </div>
                 </label>
               ))}

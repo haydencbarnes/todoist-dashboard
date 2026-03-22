@@ -104,42 +104,59 @@ export default function CompletionStreak({ allData }: CompletionStreakProps) {
     };
   }, [allCompletedTasks]);
 
+  const getMilestoneLabel = (days: number): string | null => {
+    if (days >= 100) return 'Legendary';
+    if (days >= 60) return 'Unstoppable';
+    if (days >= 30) return 'On Fire';
+    if (days >= 14) return 'Building Momentum';
+    if (days >= 7) return 'Week Warrior';
+    return null;
+  };
+
+  const milestoneLabel = getMilestoneLabel(streakInfo.currentStreak);
 
   return (
     <div className="flex items-center justify-between gap-6 flex-wrap">
       {/* Current Streak */}
       <div
-        className="bg-warm-hover border border-warm-border p-6 rounded-2xl flex-1 min-w-[200px] hover:bg-warm-card transition-colors print:bg-transparent print:border print:border-gray-100"
+        className="bg-warm-hover border border-warm-border p-6 rounded-2xl flex-1 min-w-0 sm:min-w-[200px] hover:bg-warm-card transition-colors print:bg-transparent print:border print:border-gray-100"
         data-tooltip-id="insights-tooltip"
         data-tooltip-content="Your current streak of consecutive days completing tasks"
       >
         <div className="flex items-center justify-center space-x-3 mb-2">
-          <AiFillFire className="text-4xl text-warm-peach print:text-orange-600" />
-          <span className="text-4xl font-bold text-warm-peach print:text-orange-600">
+          <AiFillFire className="text-2xl sm:text-4xl text-warm-peach print:text-orange-600" />
+          <span className="text-2xl sm:text-4xl font-bold text-warm-peach print:text-orange-600">
             {streakInfo.currentStreak}
           </span>
+          {milestoneLabel && (
+            <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-warm-peach/20 text-warm-peach border border-warm-peach/30 print:hidden">
+              {milestoneLabel}
+            </span>
+          )}
         </div>
         <div className="text-center">
           <div className="text-lg font-semibold text-white print:text-gray-700">
             Current Streak
           </div>
           <div className="text-sm text-warm-gray mt-1 print:text-gray-600">
-            {streakInfo.hasTasksToday
-              ? `${streakInfo.todayCount} ${streakInfo.todayCount === 1 ? 'task' : 'tasks'} completed today`
-              : "Complete a task to start a new streak!"}
+            {streakInfo.currentStreak > 0 && streakInfo.currentStreak >= streakInfo.longestStreak
+              ? 'This is your best streak yet!'
+              : streakInfo.hasTasksToday
+                ? `${streakInfo.todayCount} ${streakInfo.todayCount === 1 ? 'task' : 'tasks'} completed today`
+                : "Complete a task to start a new streak!"}
           </div>
         </div>
       </div>
 
       {/* Best Streak */}
       <div
-        className="bg-warm-hover border border-warm-border p-6 rounded-2xl flex-1 min-w-[200px] hover:bg-warm-card transition-colors print:bg-transparent print:border print:border-gray-100"
+        className="bg-warm-hover border border-warm-border p-6 rounded-2xl flex-1 min-w-0 sm:min-w-[200px] hover:bg-warm-card transition-colors print:bg-transparent print:border print:border-gray-100"
         data-tooltip-id="insights-tooltip"
         data-tooltip-content="Your longest streak of consecutive days completing tasks"
       >
         <div className="flex items-center justify-center space-x-3 mb-2">
-          <BsStars className="text-4xl text-warm-sage print:text-yellow-600" />
-          <span className="text-4xl font-bold text-warm-sage print:text-yellow-600">
+          <BsStars className="text-2xl sm:text-4xl text-warm-sage print:text-yellow-600" />
+          <span className="text-2xl sm:text-4xl font-bold text-warm-sage print:text-yellow-600">
             {streakInfo.longestStreak}
           </span>
         </div>

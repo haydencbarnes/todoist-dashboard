@@ -80,13 +80,13 @@ const LoadingIndicator: React.FC<LoadingIndicatorProps> = ({
       <div className="bg-warm-border rounded-full h-3">
         <div
           className={`h-3 rounded-full transition-all duration-500 max-w-full ${
-            loadError ? 'bg-warm-peach' : 'bg-warm-sage'
+            loadError ? 'bg-warm-danger' : 'bg-warm-sage'
           }`}
           style={{ width: `${progressPercentage}%` }}
         />
       </div>
       <div className="text-sm mt-2 text-center flex items-center justify-center gap-2">
-        <span className={loadError ? 'text-warm-peach' : 'text-warm-gray'}>
+        <span className={loadError ? 'text-warm-danger' : 'text-warm-gray'}>
           {isLoadingFromCache ? 'Loaded from cache: ' : 'Loaded '}
           {loadingProgress.loaded} out of {Math.min(MAX_TASKS, loadingProgress.total)} tasks
           {loadingProgress.total > MAX_TASKS && (
@@ -96,7 +96,7 @@ const LoadingIndicator: React.FC<LoadingIndicatorProps> = ({
         {loadError && (
           <>
             <BsExclamationTriangle
-              className="text-warm-peach cursor-help"
+              className="text-warm-danger cursor-help"
               data-tooltip-id="error-tooltip"
               data-tooltip-content={`Only partial data loaded: ${loadError.message}`}
             />

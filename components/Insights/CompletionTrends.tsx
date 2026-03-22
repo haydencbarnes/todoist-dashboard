@@ -10,6 +10,7 @@ import { HiArrowsRightLeft } from 'react-icons/hi2';
 import { calculateTaskAverages } from '../../utils/calculateTaskAverages';
 import TrendChart from '../TrendChart';
 import DeltaIndicator from '../shared/DeltaIndicator';
+import Spinner from '../shared/Spinner';
 import { CompletedTask } from '../../types';
 
 type QuestionMarkProps = {
@@ -64,7 +65,7 @@ const CompletionTrends: React.FC<CompletionTrendsProps> = ({ completedTasks, loa
         <div>
           {loading || !taskAverages?.last24Hours ? (
             <div className="flex items-center justify-center h-[240px]">
-              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-warm-peach"></div>
+              <Spinner />
             </div>
           ) : (
             <>
@@ -86,7 +87,7 @@ const CompletionTrends: React.FC<CompletionTrendsProps> = ({ completedTasks, loa
                     className={`text-sm px-2 py-1 rounded cursor-help ${
                       taskAverages.last24Hours.percentChange >= 0
                         ? 'text-warm-sage bg-warm-sage/10'
-                        : 'text-warm-peach bg-warm-peach/10'
+                        : 'text-warm-danger bg-warm-danger/10'
                     }`}
                     data-tooltip-id="trends-tooltip"
                     data-tooltip-content={`${Math.abs(taskAverages.last24Hours.percentChange)}% ${
@@ -112,7 +113,7 @@ const CompletionTrends: React.FC<CompletionTrendsProps> = ({ completedTasks, loa
         <div>
           {loading || !taskAverages?.last7Days ? (
             <div className="flex items-center justify-center h-[240px]">
-              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-warm-peach"></div>
+              <Spinner />
             </div>
           ) : (
             <>
@@ -134,7 +135,7 @@ const CompletionTrends: React.FC<CompletionTrendsProps> = ({ completedTasks, loa
                     className={`text-sm px-2 py-1 rounded cursor-help ${
                       taskAverages.last7Days.percentChange >= 0
                         ? 'text-warm-sage bg-warm-sage/10'
-                        : 'text-warm-peach bg-warm-peach/10'
+                        : 'text-warm-danger bg-warm-danger/10'
                     }`}
                     data-tooltip-id="trends-tooltip"
                     data-tooltip-content={`${Math.abs(taskAverages.last7Days.percentChange)}% ${
@@ -160,7 +161,7 @@ const CompletionTrends: React.FC<CompletionTrendsProps> = ({ completedTasks, loa
         <div>
           {loading || !taskAverages?.last30Days ? (
             <div className="flex items-center justify-center h-[240px]">
-              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-warm-peach"></div>
+              <Spinner />
             </div>
           ) : (
             <>
@@ -182,7 +183,7 @@ const CompletionTrends: React.FC<CompletionTrendsProps> = ({ completedTasks, loa
                     className={`text-sm px-2 py-1 rounded cursor-help ${
                       taskAverages.last30Days.percentChange >= 0
                         ? 'text-warm-sage bg-warm-sage/10'
-                        : 'text-warm-peach bg-warm-peach/10'
+                        : 'text-warm-danger bg-warm-danger/10'
                     }`}
                     data-tooltip-id="trends-tooltip"
                     data-tooltip-content={`${Math.abs(taskAverages.last30Days.percentChange)}% ${

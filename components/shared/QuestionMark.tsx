@@ -13,7 +13,7 @@ interface QuestionMarkProps {
 const QuestionMark: React.FC<QuestionMarkProps> = memo(({ content, tooltipId = 'dashboard-tooltip' }) => (
   <button
     type="button"
-    className="inline-flex items-center justify-center ml-2 text-warm-gray hover:text-white cursor-help focus:outline-none focus:text-white"
+    className="inline-flex items-center justify-center ml-2 text-warm-gray hover:text-white cursor-help focus:outline-none focus:ring-2 focus:ring-warm-peach focus:ring-offset-2 focus:ring-offset-warm-black rounded-full"
     data-tooltip-id={tooltipId}
     data-tooltip-content={content}
     aria-label={content}

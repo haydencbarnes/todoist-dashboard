@@ -25,9 +25,11 @@ export default function Pagination({
     <div className="flex flex-col items-center justify-center gap-2 mt-auto">
       <div className="flex items-center space-x-2">
         <button
+          type="button"
           onClick={handlePrevPage}
           disabled={currentPage === 1}
-          className={`p-1.5 rounded-lg transition-all duration-200 ${
+          aria-label="Previous page"
+          className={`p-2.5 rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-warm-peach focus:ring-offset-2 focus:ring-offset-warm-card ${
             currentPage === 1
               ? 'text-warm-gray/50 cursor-not-allowed'
               : 'text-warm-peach hover:bg-warm-peach/10 hover:text-warm-peach'
@@ -38,6 +40,7 @@ export default function Pagination({
             className="h-5 w-5"
             viewBox="0 0 20 20"
             fill="currentColor"
+            aria-hidden="true"
           >
             <path
               fillRule="evenodd"
@@ -52,9 +55,11 @@ export default function Pagination({
         </div>
 
         <button
+          type="button"
           onClick={handleNextPage}
           disabled={currentPage === totalPages}
-          className={`p-1.5 rounded-lg transition-all duration-200 ${
+          aria-label="Next page"
+          className={`p-2.5 rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-warm-peach focus:ring-offset-2 focus:ring-offset-warm-card ${
             currentPage === totalPages
               ? 'text-warm-gray/50 cursor-not-allowed'
               : 'text-warm-peach hover:bg-warm-peach/10 hover:text-warm-peach'
@@ -65,6 +70,7 @@ export default function Pagination({
             className="h-5 w-5"
             viewBox="0 0 20 20"
             fill="currentColor"
+            aria-hidden="true"
           >
             <path
               fillRule="evenodd"

@@ -87,12 +87,12 @@ export default function VisibilityModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-75">
-      <div className="bg-warm-card rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col border border-warm-border">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75">
+      <div role="dialog" aria-modal="true" aria-labelledby="visibility-modal-title" className="bg-warm-card rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col border border-warm-border">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-warm-border">
           <div>
-            <h2 className="text-2xl font-bold text-white">Customize Dashboard</h2>
+            <h2 id="visibility-modal-title" className="text-2xl font-bold text-white">Customize Dashboard</h2>
             <p className="text-sm text-warm-gray mt-1">
               Choose which sections to display
             </p>

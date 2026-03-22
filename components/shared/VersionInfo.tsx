@@ -2,10 +2,28 @@ import React, { useState } from 'react';
 import { FaTimes } from 'react-icons/fa';
 
 // Current version number
-const APP_VERSION = '0.11.0';
+const APP_VERSION = '0.12.0';
 
 // Changelog entries - newest first
 const CHANGELOG = [
+  {
+    version: '0.12.0',
+    date: 'March 2026',
+    changes: [
+      'Design overhaul: section group headers, visual hierarchy tiers, and standardized typography',
+      'New semantic color tokens (warm-danger, warm-warning) separating errors from brand accent',
+      'Shared chart theme system — all ECharts components use centralized design tokens',
+      'Milestone badges on completion streaks (7/14/30/60/100 days)',
+      'Larger productivity score gauge with contextual labels and high-score glow',
+      'Dynamic greeting with weekly task summary',
+      'Visible subtitles on complex sections replacing tooltip-only context',
+      'Extracted shared Spinner component across all chart loading states',
+      'Accessibility polish: focus rings, aria-labels, modal roles, touch target sizing',
+      'Responsive hardening: grids collapse properly at 320px, large numbers scale down',
+      'Text overflow protection on project names and task badges',
+      'Performance: progress bar animations use transform instead of width/height',
+    ]
+  },
   {
     version: '0.11.0',
     date: 'February 2026',
@@ -128,7 +146,7 @@ const VersionInfo: React.FC = () => {
 
       {/* Changelog Modal */}
       {showModal && (
-        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-70 p-4">
+        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black/70 p-4">
           <div className="bg-warm-card border border-warm-border rounded-lg w-full max-w-lg max-h-[80vh] overflow-y-auto shadow-xl">
             <div className="flex justify-between items-center p-4 border-b border-warm-border">
               <h2 className="text-xl font-semibold text-white">Changelog</h2>

@@ -17,6 +17,14 @@ import {
 } from 'date-fns';
 import { HiArrowsRightLeft } from 'react-icons/hi2';
 import { trackChartInteraction } from '@/utils/analytics';
+import {
+  WARM_PEACH,
+  WARM_SAGE,
+  WARM_GRAY,
+  WARM_BORDER,
+  CHART_TOOLTIP,
+  AXIS_LINE,
+} from '../utils/chartTheme';
 
 interface Task {
   completed_at: string;
@@ -226,12 +234,8 @@ function CompletedTasksOverTime({ allData, loading, comparisonData }: CompletedT
   const option: EChartsOption = {
     tooltip: {
       trigger: 'axis',
-      backgroundColor: 'rgba(26, 26, 26, 0.95)',
-      borderColor: '#374151',
+      ...CHART_TOOLTIP,
       borderWidth: 1,
-      textStyle: {
-        color: '#f3f4f6'
-      },
       formatter: function(params: CallbackDataParams | CallbackDataParams[]): string {
         const items = Array.isArray(params) ? params : [params];
         if (!items[0] || typeof items[0].value === 'undefined' || !('axisValue' in items[0])) {
@@ -256,14 +260,12 @@ function CompletedTasksOverTime({ allData, loading, comparisonData }: CompletedT
       boundaryGap: false,
       data: labels,
       axisLabel: {
-        color: '#9ca3af',
+        color: WARM_GRAY,
         fontSize: 11,
         rotate: 45
       },
       axisLine: {
-        lineStyle: {
-          color: '#374151'
-        }
+        ...AXIS_LINE,
       },
       axisTick: {
         show: false
@@ -272,12 +274,12 @@ function CompletedTasksOverTime({ allData, loading, comparisonData }: CompletedT
     yAxis: {
       type: 'value',
       axisLabel: {
-        color: '#9ca3af',
+        color: WARM_GRAY,
         fontSize: 11
       },
       splitLine: {
         lineStyle: {
-          color: '#374151',
+          color: WARM_BORDER,
           type: 'dashed'
         }
       },
@@ -298,10 +300,10 @@ function CompletedTasksOverTime({ allData, loading, comparisonData }: CompletedT
         symbolSize: 8,
         lineStyle: {
           width: 4,
-          color: '#FF9B71'  // warm-peach
+          color: WARM_PEACH
         },
         itemStyle: {
-          color: '#FF9B71',  // warm-peach
+          color: WARM_PEACH,
           borderWidth: 2,
           borderColor: '#ffffff'
         },
@@ -309,10 +311,10 @@ function CompletedTasksOverTime({ allData, loading, comparisonData }: CompletedT
           opacity: 0.2,
           color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{
             offset: 0,
-            color: '#FF9B71'  // warm-peach
+            color: WARM_PEACH
           }, {
             offset: 1,
-            color: '#7FD49E'  // warm-sage
+            color: WARM_SAGE
           }])
         }
       },
@@ -324,15 +326,15 @@ function CompletedTasksOverTime({ allData, loading, comparisonData }: CompletedT
         symbol: 'none' as const,
         lineStyle: {
           width: 2,
-          color: '#9CA3AF',
+          color: WARM_GRAY,
           type: 'dashed' as const,
         },
         itemStyle: {
-          color: '#9CA3AF',
+          color: WARM_GRAY,
         },
         areaStyle: {
           opacity: 0.05,
-          color: '#9CA3AF',
+          color: WARM_GRAY,
         },
       }] : [])
     ]

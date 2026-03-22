@@ -3,6 +3,16 @@ import ReactECharts from 'echarts-for-react';
 import { EChartsOption } from 'echarts';
 import { CompletedTask } from '../types';
 import { calculateCompletionHeatmapData } from '../utils/calculateCompletionHeatmapData';
+import Spinner from './shared/Spinner';
+import {
+  WARM_BORDER,
+  WARM_PEACH,
+  WARM_PEACH_LIGHT,
+  WARM_PEACH_DARK,
+  WARM_GRAY,
+  CHART_TOOLTIP,
+  AXIS_LINE,
+} from '../utils/chartTheme';
 
 interface CompletionHeatmapProps {
   completedTasks: CompletedTask[];
@@ -24,7 +34,7 @@ function CompletionHeatmap({
   if (loading || !completedTasks || completedTasks.length === 0) {
     return (
       <div className="flex items-center justify-center h-[300px]">
-        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-warm-peach"></div>
+        <Spinner />
       </div>
     );
   }
@@ -58,12 +68,8 @@ function CompletionHeatmap({
           ${count > 0 ? `<div class="text-xs">${((count / heatmapData.totalCompletions) * 100).toFixed(1)}% of total</div>` : ''}
         `;
       },
-      backgroundColor: 'rgba(26, 26, 26, 0.95)',
-      borderColor: '#374151',
+      ...CHART_TOOLTIP,
       borderWidth: 1,
-      textStyle: {
-        color: '#f3f4f6'
-      }
     },
     grid: {
       top: '15%',
@@ -78,7 +84,7 @@ function CompletionHeatmap({
         show: true
       },
       axisLabel: {
-        color: '#9ca3af',
+        color: WARM_GRAY,
         fontSize: 10,
         interval: window?.innerWidth < 640 ? 3 : 1,
         formatter: (value: string) => {
@@ -87,9 +93,7 @@ function CompletionHeatmap({
         }
       },
       axisLine: {
-        lineStyle: {
-          color: '#374151'
-        }
+        ...AXIS_LINE,
       }
     },
     yAxis: {
@@ -99,13 +103,11 @@ function CompletionHeatmap({
         show: true
       },
       axisLabel: {
-        color: '#9ca3af',
+        color: WARM_GRAY,
         fontSize: 11
       },
       axisLine: {
-        lineStyle: {
-          color: '#374151'
-        }
+        ...AXIS_LINE,
       }
     },
     visualMap: {
@@ -116,14 +118,14 @@ function CompletionHeatmap({
       left: 'center',
       bottom: '0%',
       textStyle: {
-        color: '#9ca3af'
+        color: WARM_GRAY
       },
       inRange: {
         color: [
-          '#2A2A2A', // warm-border (low)
-          '#FFB599', // light warm-peach (medium)
-          '#FF9B71', // warm-peach (high)
-          '#FF7A3D'  // darker warm-peach (very high)
+          WARM_BORDER,       // warm-border (low)
+          WARM_PEACH_LIGHT,  // light warm-peach (medium)
+          WARM_PEACH,        // warm-peach (high)
+          WARM_PEACH_DARK    // darker warm-peach (very high)
         ]
       }
     },

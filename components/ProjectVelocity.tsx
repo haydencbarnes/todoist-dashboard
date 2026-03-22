@@ -7,6 +7,13 @@ import { calculateProjectVelocity, VelocityData } from '../utils/calculateProjec
 import { FiArrowUp, FiArrowDown } from 'react-icons/fi';
 import { HiArrowsRightLeft } from 'react-icons/hi2';
 import { colorNameToHex } from '../utils/projectUtils';
+import Spinner from './shared/Spinner';
+import {
+  WARM_BORDER,
+  WARM_GRAY,
+  CHART_TOOLTIP,
+  AXIS_LINE,
+} from '../utils/chartTheme';
 
 interface ProjectVelocityProps {
   completedTasks: CompletedTask[];
@@ -40,7 +47,7 @@ function ProjectVelocity({
   if (loading || completedTasks.length === 0 || projectData.length === 0) {
     return (
       <div className="flex items-center justify-center h-[300px]">
-        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-warm-peach"></div>
+        <Spinner />
       </div>
     );
   }
@@ -113,13 +120,13 @@ function ProjectVelocity({
       silent: true,
       symbol: 'none',
       lineStyle: {
-        color: '#9CA3AF',
+        color: WARM_GRAY,
         type: 'dashed',
         width: 2,
       },
       label: {
         formatter: `Prev: ${previousPeriodTotal}`,
-        color: '#9CA3AF',
+        color: WARM_GRAY,
         fontSize: 10,
       },
       data: [
@@ -135,22 +142,18 @@ function ProjectVelocity({
       axisPointer: {
         type: 'shadow'
       },
-      backgroundColor: 'rgba(26, 26, 26, 0.95)',
-      borderColor: '#374151',
+      ...CHART_TOOLTIP,
       borderWidth: 1,
-      textStyle: {
-        color: '#f3f4f6'
-      }
     },
     legend: {
       data: limitedProjectIds.map(id => projectNames[id] || 'Unknown'),
       textStyle: {
-        color: '#9ca3af'
+        color: WARM_GRAY
       },
       type: 'scroll',
-      pageIconColor: '#9ca3af',
+      pageIconColor: WARM_GRAY,
       pageTextStyle: {
-        color: '#9ca3af'
+        color: WARM_GRAY
       }
     },
     grid: {
@@ -163,28 +166,26 @@ function ProjectVelocity({
       type: 'category',
       data: intervalLabels,
       axisLabel: {
-        color: '#9ca3af',
+        color: WARM_GRAY,
         fontSize: 10
       },
       axisLine: {
-        lineStyle: {
-          color: '#374151'
-        }
+        ...AXIS_LINE,
       }
     },
     yAxis: {
       type: 'value',
       name: 'Tasks',
       nameTextStyle: {
-        color: '#9ca3af'
+        color: WARM_GRAY
       },
       axisLabel: {
-        color: '#9ca3af',
+        color: WARM_GRAY,
         fontSize: 10
       },
       splitLine: {
         lineStyle: {
-          color: '#374151',
+          color: WARM_BORDER,
           opacity: 0.3
         }
       }

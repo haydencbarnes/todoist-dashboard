@@ -5,6 +5,8 @@ import { EChartsOption } from 'echarts';
 import { CallbackDataParams } from 'echarts/types/dist/shared';
 import { CompletedTask } from '../types';
 import escapeHtml from '@/utils/escapeHtml';
+import Spinner from './shared/Spinner';
+import { CHART_TOOLTIP, AXIS_LABEL, AXIS_LINE, SPLIT_LINE, WARM_BLUE, WARM_BLUE_LIGHT } from '../utils/chartTheme';
 
 interface AllData {
   allCompletedTasks: CompletedTask[];
@@ -19,7 +21,7 @@ function CompletedByTimeOfDay({ allData, loading }: CompletedByTimeOfDayProps) {
   if (!allData?.allCompletedTasks || loading) {
     return (
       <div className="flex items-center justify-center h-[240px]">
-        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-warm-peach"></div>
+        <Spinner />
       </div>
     );
   }
@@ -50,12 +52,8 @@ function CompletedByTimeOfDay({ allData, loading }: CompletedByTimeOfDayProps) {
   const option: EChartsOption = {
     tooltip: {
       trigger: 'axis',
-      backgroundColor: 'rgba(26, 26, 26, 0.95)',
-      borderColor: '#374151',
+      ...CHART_TOOLTIP,
       borderWidth: 1,
-      textStyle: {
-        color: '#f3f4f6'
-      },
       formatter: (params: CallbackDataParams | CallbackDataParams[]) => {
         const data = Array.isArray(params) ? params[0] : params;
         if (!data || typeof data.value === 'undefined' || !data.name) {
@@ -76,14 +74,12 @@ function CompletedByTimeOfDay({ allData, loading }: CompletedByTimeOfDayProps) {
       type: 'category',
       data: hours,
       axisLabel: {
-        color: '#9ca3af',
+        ...AXIS_LABEL,
         fontSize: 10,
         interval: window?.innerWidth < 640 ? 3 : 1
       },
       axisLine: {
-        lineStyle: {
-          color: '#374151'
-        }
+        ...AXIS_LINE
       },
       axisTick: {
         show: false
@@ -92,12 +88,12 @@ function CompletedByTimeOfDay({ allData, loading }: CompletedByTimeOfDayProps) {
     yAxis: {
       type: 'value',
       axisLabel: {
-        color: '#9ca3af',
+        ...AXIS_LABEL,
         fontSize: 10
       },
       splitLine: {
         lineStyle: {
-          color: '#374151',
+          ...SPLIT_LINE.lineStyle,
           opacity: 0.3
         }
       },
@@ -114,11 +110,11 @@ function CompletedByTimeOfDay({ allData, loading }: CompletedByTimeOfDayProps) {
         type: 'bar',
         itemStyle: {
           borderRadius: [4, 4, 0, 0],
-          color: '#8BB4E8'  // warm-blue
+          color: WARM_BLUE
         },
         emphasis: {
           itemStyle: {
-            color: '#A5C7EF'  // lighter warm-blue
+            color: WARM_BLUE_LIGHT
           }
         }
       }

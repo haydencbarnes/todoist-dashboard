@@ -56,9 +56,9 @@ export function calculateTaskAverages(tasks: CompletedTask[] | null): TaskAverag
       return acc;
     }, {});
 
-  const dailyAverage = Math.round(
-    Object.values(dailyTaskCounts).reduce((sum, count) => sum + count, 0) / 
-    Object.keys(dailyTaskCounts).length
+  const dailyDays = Object.keys(dailyTaskCounts).length;
+  const dailyAverage = dailyDays === 0 ? 0 : Math.round(
+    Object.values(dailyTaskCounts).reduce((sum, count) => sum + count, 0) / dailyDays
   );
 
   // Get today's task count

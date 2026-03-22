@@ -28,26 +28,26 @@ const BacklogHealth: React.FC<BacklogHealthProps> = ({ activeTasks, completedTas
 
   // Determine health color
   const getHealthColor = (score: number) => {
-    if (score >= 80) return { text: 'text-green-400', border: 'border-green-500/30' };
-    if (score >= 50) return { text: 'text-yellow-400', border: 'border-yellow-500/30' };
-    return { text: 'text-red-400', border: 'border-red-500/30' };
+    if (score >= 80) return { text: 'text-warm-sage', border: 'border-warm-sage/30' };
+    if (score >= 50) return { text: 'text-warm-warning', border: 'border-warm-warning/30' };
+    return { text: 'text-warm-danger', border: 'border-warm-danger/30' };
   };
 
   const healthColor = getHealthColor(metrics.healthScore);
 
   const getReasonLabel = (reason: string) => {
     switch (reason) {
-      case 'stale': return { text: 'Old', icon: '🕰️', color: 'text-orange-400' };
-      case 'overdue-high-priority': return { text: 'Action Needed', icon: '🚨', color: 'text-red-400' };
+      case 'stale': return { text: 'Old', icon: '🕰️', color: 'text-warm-warning' };
+      case 'overdue-high-priority': return { text: 'Action Needed', icon: '🚨', color: 'text-warm-danger' };
       default: return { text: 'Review', icon: '⚠️', color: 'text-warm-gray' };
     }
   };
 
   const getPriorityLabel = (priority: number) => {
     switch (priority) {
-      case 4: return { text: 'P1', color: 'text-red-400' };
-      case 3: return { text: 'P2', color: 'text-orange-400' };
-      case 2: return { text: 'P3', color: 'text-yellow-400' };
+      case 4: return { text: 'P1', color: 'text-warm-danger' };
+      case 3: return { text: 'P2', color: 'text-warm-warning' };
+      case 2: return { text: 'P3', color: 'text-warm-peach' };
       default: return { text: 'P4', color: 'text-warm-gray' };
     }
   };
@@ -115,7 +115,7 @@ const BacklogHealth: React.FC<BacklogHealthProps> = ({ activeTasks, completedTas
             data-tooltip-content="Tasks that are past their due date"
           >
             <div className="text-xs text-warm-gray">Overdue</div>
-            <div className="text-lg font-bold text-red-400">{metrics.overdueCount}</div>
+            <div className="text-lg font-bold text-warm-danger">{metrics.overdueCount}</div>
           </div>
 
           <div
@@ -124,7 +124,7 @@ const BacklogHealth: React.FC<BacklogHealthProps> = ({ activeTasks, completedTas
             data-tooltip-content="Tasks that have been sitting for over 30 days"
           >
             <div className="text-xs text-warm-gray">Stale (30d+)</div>
-            <div className="text-lg font-bold text-orange-400">{metrics.staleCount}</div>
+            <div className="text-lg font-bold text-warm-warning">{metrics.staleCount}</div>
           </div>
         </div>
       </div>
@@ -161,7 +161,7 @@ const BacklogHealth: React.FC<BacklogHealthProps> = ({ activeTasks, completedTas
                   {/* Metadata */}
                   <div className="flex flex-wrap items-center gap-1.5 text-xs">
                     {/* Project */}
-                    <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-warm-peach/20 text-warm-peach border border-warm-peach/30">
+                    <span className="inline-flex items-center max-w-[150px] px-1.5 py-0.5 rounded bg-warm-peach/20 text-warm-peach border border-warm-peach/30 truncate">
                       {project?.name || 'No Project'}
                     </span>
 
@@ -187,7 +187,7 @@ const BacklogHealth: React.FC<BacklogHealthProps> = ({ activeTasks, completedTas
 
                     {/* Due date */}
                     {task.due?.date && (
-                      <span className={`${new Date(task.due.date) < new Date() ? 'text-red-400' : 'text-warm-peach'}`}>
+                      <span className={`${new Date(task.due.date) < new Date() ? 'text-warm-danger' : 'text-warm-peach'}`}>
                         {new Date(task.due.date) < new Date() ? 'Overdue' : 'Due'} {new Date(task.due.date).toLocaleDateString('en-US', {
                           month: 'short',
                           day: 'numeric'
@@ -200,10 +200,10 @@ const BacklogHealth: React.FC<BacklogHealthProps> = ({ activeTasks, completedTas
             );
           })
         ) : (
-          <div className="text-center py-6 text-warm-gray bg-warm-hover rounded-lg border border-warm-border">
-            <div className="text-3xl mb-1">✨</div>
-            <p className="text-sm font-medium">Backlog is clean!</p>
-            <p className="text-xs mt-1">No tasks need immediate attention</p>
+          <div className="text-center py-8 text-warm-gray bg-warm-hover rounded-lg border border-warm-border">
+            <div className="text-3xl mb-2">✨</div>
+            <p className="text-sm font-medium text-warm-sage">Backlog is clean!</p>
+            <p className="text-xs mt-1">Everything is on track — nothing needs your attention right now</p>
           </div>
         )}
       </div>
@@ -212,9 +212,11 @@ const BacklogHealth: React.FC<BacklogHealthProps> = ({ activeTasks, completedTas
       {totalPages > 1 && (
         <div className="flex items-center justify-between pt-2 border-t border-warm-border">
           <button
+            type="button"
             onClick={() => setCurrentPage(p => Math.max(0, p - 1))}
             disabled={currentPage === 0}
-            className="flex items-center gap-1 px-2 py-1 text-sm text-warm-gray hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            aria-label="Previous page"
+            className="flex items-center gap-1 px-3 py-2 text-sm text-warm-gray hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors rounded-lg focus:outline-none focus:ring-2 focus:ring-warm-peach focus:ring-offset-2 focus:ring-offset-warm-card"
           >
             <BsChevronLeft className="w-3 h-3" />
             Prev
@@ -223,9 +225,11 @@ const BacklogHealth: React.FC<BacklogHealthProps> = ({ activeTasks, completedTas
             {startIdx + 1}-{Math.min(startIdx + ITEMS_PER_PAGE, tasksToReview.length)} of {tasksToReview.length}
           </span>
           <button
+            type="button"
             onClick={() => setCurrentPage(p => Math.min(totalPages - 1, p + 1))}
             disabled={currentPage === totalPages - 1}
-            className="flex items-center gap-1 px-2 py-1 text-sm text-warm-gray hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            aria-label="Next page"
+            className="flex items-center gap-1 px-3 py-2 text-sm text-warm-gray hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors rounded-lg focus:outline-none focus:ring-2 focus:ring-warm-peach focus:ring-offset-2 focus:ring-offset-warm-card"
           >
             Next
             <BsChevronRight className="w-3 h-3" />
