@@ -94,11 +94,13 @@ export function calculateBacklogHealth(
       : (sortedAges[Math.floor(sortedAges.length / 2)] ?? 0)
     : 0;
 
-  // Count problematic tasks
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+
   const overdueCount = nonRecurringTasks.filter(task => {
     if (!task.due?.date) return false;
-    const dueDate = new Date(task.due.date);
-    return dueDate < now;
+    const [y, m, d] = task.due.date.split('-').map(Number);
+    const dueLocal = new Date(y!, m! - 1, d!);
+    return dueLocal < todayStart;
   }).length;
 
   const staleCount = taskAges.filter(age => age >= 30).length;
@@ -160,8 +162,12 @@ export function calculateBacklogHealth(
     }
 
     const age = differenceInDays(now, createdAt);
-    const dueDate = task.due?.date ? new Date(task.due.date) : null;
-    const isOverdue = dueDate && dueDate < now;
+    let dueLocal: Date | null = null;
+    if (task.due?.date) {
+      const [y, m, d] = task.due.date.split('-').map(Number);
+      dueLocal = new Date(y!, m! - 1, d!);
+    }
+    const isOverdue = dueLocal && dueLocal < todayStart;
 
     // Determine if task needs review (priority order: overdue > very stale > old unscheduled > high priority unscheduled)
     let shouldReview = false;
