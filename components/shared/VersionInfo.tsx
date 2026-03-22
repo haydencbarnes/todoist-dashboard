@@ -10,18 +10,11 @@ const CHANGELOG = [
     version: '0.12.0',
     date: 'March 2026',
     changes: [
-      'Design overhaul: section group headers, visual hierarchy tiers, and standardized typography',
-      'New semantic color tokens (warm-danger, warm-warning) separating errors from brand accent',
-      'Shared chart theme system — all ECharts components use centralized design tokens',
-      'Milestone badges on completion streaks (7/14/30/60/100 days)',
-      'Larger productivity score gauge with contextual labels and high-score glow',
-      'Dynamic greeting with weekly task summary',
-      'Visible subtitles on complex sections replacing tooltip-only context',
-      'Extracted shared Spinner component across all chart loading states',
-      'Accessibility polish: focus rings, aria-labels, modal roles, touch target sizing',
-      'Responsive hardening: grids collapse properly at 320px, large numbers scale down',
-      'Text overflow protection on project names and task badges',
-      'Performance: progress bar animations use transform instead of width/height',
+      'Design polish: section group headers, visual hierarchy, and standardized typography',
+      'Semantic color tokens for errors and warnings, centralized chart theme',
+      'Milestone badges on streaks, contextual score labels, dynamic weekly greeting',
+      'Accessibility: focus traps, ARIA labels, keyboard navigation, responsive touch targets',
+      'Security: upgraded Next.js, flatted, and undici to patch vulnerabilities',
     ]
   },
   {
