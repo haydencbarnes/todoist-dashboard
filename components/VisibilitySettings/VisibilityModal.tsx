@@ -84,11 +84,35 @@ export default function VisibilityModal({
     trackCustomization('deselect_all');
   };
 
+  const modalRef = useRef<HTMLDivElement>(null);
+
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      onClose();
+      return;
+    }
+    if (e.key !== 'Tab') return;
+    const focusables = modalRef.current?.querySelectorAll<HTMLElement>(
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+    );
+    if (!focusables || focusables.length <= 1) return;
+    const first = focusables[0];
+    const last = focusables[focusables.length - 1];
+    if (!first || !last) return;
+    if (e.shiftKey && document.activeElement === first) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault();
+      first.focus();
+    }
+  }, [onClose]);
+
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75">
-      <div role="dialog" aria-modal="true" aria-labelledby="visibility-modal-title" className="bg-warm-card rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col border border-warm-border">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75" onKeyDown={handleKeyDown}>
+      <div ref={modalRef} role="dialog" aria-modal="true" aria-labelledby="visibility-modal-title" className="bg-warm-card rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col border border-warm-border">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-warm-border">
           <div>

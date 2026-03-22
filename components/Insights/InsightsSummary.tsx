@@ -5,24 +5,10 @@
 
 import React, { memo } from 'react';
 import { Tooltip } from 'react-tooltip';
-import { BsQuestionCircle } from 'react-icons/bs';
 import { calculateCompletionRates } from '../../utils/calculateCompletionRates';
 import { calculateCreatedTasks } from '../../utils/calculateCreatedTasks';
+import QuestionMark from '../shared/QuestionMark';
 import { CompletedTask, ProjectData } from '../../types';
-
-type QuestionMarkProps = {
-  content: string;
-};
-
-const QuestionMark: React.FC<QuestionMarkProps> = memo(({ content }) => (
-  <BsQuestionCircle
-    className="inline-block ml-2 text-warm-gray hover:text-white cursor-help"
-    data-tooltip-id="summary-tooltip"
-    data-tooltip-content={content}
-  />
-));
-
-QuestionMark.displayName = 'QuestionMark';
 
 type CompletionRates = {
   dailyCompletionRate: number;
@@ -69,7 +55,7 @@ const InsightsSummary: React.FC<InsightsSummaryProps> = ({
       <div className="bg-warm-card border border-warm-border p-6 rounded-2xl">
         <h3 className="text-xl font-semibold mb-6 text-white">
           Completion Rates
-          <QuestionMark content="Your task completion rates compared to your average performance" />
+          <QuestionMark content="Your task completion rates compared to your average performance" tooltipId="summary-tooltip" />
         </h3>
         <div className="space-y-6">
           {['daily', 'weekly', 'monthly'].map((period) => {
@@ -113,7 +99,7 @@ const InsightsSummary: React.FC<InsightsSummaryProps> = ({
       <div className="bg-warm-card border border-warm-border p-6 rounded-2xl">
         <h3 className="text-xl font-semibold mb-6 text-white">
           Project Distribution
-          <QuestionMark content="Distribution of completed tasks across your top projects" />
+          <QuestionMark content="Distribution of completed tasks across your top projects" tooltipId="summary-tooltip" />
         </h3>
         <div className="space-y-4">
           {projectStats.slice(0, 5).map((project) => (
@@ -149,7 +135,7 @@ const InsightsSummary: React.FC<InsightsSummaryProps> = ({
       <div className="bg-warm-card border border-warm-border p-6 rounded-2xl">
         <h3 className="text-xl font-semibold mb-10 text-white">
           Weekly Progress
-          <QuestionMark content="Number of tasks completed in the last 7 days" />
+          <QuestionMark content="Number of tasks completed in the last 7 days" tooltipId="summary-tooltip" />
         </h3>
         <div className="flex justify-between items-end h-48 px-2">
           {weeklyTasks.map((count: number, index: number) => {

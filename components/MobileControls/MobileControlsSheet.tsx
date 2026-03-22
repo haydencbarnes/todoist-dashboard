@@ -162,6 +162,7 @@ export default function MobileControlsSheet({
                 Filters & Actions
               </h2>
               <button
+                type="button"
                 data-close-button
                 onClick={onClose}
                 className="p-2 -mr-2 text-warm-gray hover:text-white rounded-lg hover:bg-warm-hover transition-colors focus:outline-none focus:ring-2 focus:ring-warm-peach focus:ring-offset-2 focus:ring-offset-warm-card"

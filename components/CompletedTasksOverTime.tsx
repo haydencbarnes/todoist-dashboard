@@ -346,6 +346,7 @@ function CompletedTasksOverTime({ allData, loading, comparisonData }: CompletedT
         <div className="flex items-center space-x-2">
           {hasComparisonData && (
             <button
+              type="button"
               onClick={() => setShowComparison(!showComparison)}
               className={`p-1.5 rounded-lg border transition-all ${
                 showComparison

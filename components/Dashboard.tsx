@@ -547,6 +547,7 @@ export default function Dashboard(): JSX.Element {
                   </h2>
                   <div className="inline-flex items-center bg-warm-hover rounded-lg p-0.5 text-xs">
                     <button
+                      type="button"
                       onClick={() => {
                         setLabelViewMode('all');
                         trackChartInteraction('label_distribution', 'view_change', 'all');
@@ -560,6 +561,7 @@ export default function Dashboard(): JSX.Element {
                       All
                     </button>
                     <button
+                      type="button"
                       onClick={() => {
                         setLabelViewMode('active');
                         trackChartInteraction('label_distribution', 'view_change', 'active');

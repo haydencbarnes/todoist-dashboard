@@ -5,27 +5,13 @@
 
 import React, { memo } from 'react';
 import { Tooltip } from 'react-tooltip';
-import { BsQuestionCircle } from 'react-icons/bs';
 import { calculateMostProductiveDay } from '../../utils/calculateMostProductiveDay';
 import { calculateMostProductiveTimeOfDay } from '../../utils/calculateMostProductiveTimeOfDay';
 import { calculateMostProductiveDayOfWeek } from '../../utils/calculateMostProductiveDayOfWeek';
 import { calculateCompletionRates } from '../../utils/calculateCompletionRates';
 import { getDayOfWeekName, DayOfWeek } from '../../utils/getDayOfWeekName';
+import QuestionMark from '../shared/QuestionMark';
 import { CompletedTask } from '../../types';
-
-type QuestionMarkProps = {
-  content: string;
-};
-
-const QuestionMark: React.FC<QuestionMarkProps> = memo(({ content }) => (
-  <BsQuestionCircle
-    className="inline-block ml-2 text-warm-gray hover:text-white cursor-help"
-    data-tooltip-id="productivity-tooltip"
-    data-tooltip-content={content}
-  />
-));
-
-QuestionMark.displayName = 'QuestionMark';
 
 type MetricCardProps = {
   icon: string;
@@ -116,7 +102,7 @@ const ProductivityScore: React.FC<ProductivityScoreProps> = ({ completedTasks, l
         </div>
         <p className="text-xl mt-2">
           Productivity Score
-          <QuestionMark content="Your productivity score is based on your completion rates and task consistency" />
+          <QuestionMark content="Your productivity score is based on your completion rates and task consistency" tooltipId="productivity-tooltip" />
         </p>
       </div>
 
@@ -124,7 +110,7 @@ const ProductivityScore: React.FC<ProductivityScoreProps> = ({ completedTasks, l
       <div className="flex-1 bg-warm-card border border-warm-border p-6 rounded-2xl">
         <h3 className="text-xl font-semibold mb-4 flex items-center text-white">
           Key Metrics
-          <QuestionMark content="Overview of your most productive periods" />
+          <QuestionMark content="Overview of your most productive periods" tooltipId="productivity-tooltip" />
         </h3>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
           {mostProductiveDay && (

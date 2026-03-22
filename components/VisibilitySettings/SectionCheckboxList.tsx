@@ -35,12 +35,14 @@ export default function SectionCheckboxList({
       {/* Quick Actions */}
       <div className="flex flex-wrap gap-2 mb-4">
         <button
+          type="button"
           onClick={onSelectAll}
           className="text-sm px-3 py-1 rounded-lg bg-warm-hover hover:bg-warm-card text-white transition-colors border border-warm-border"
         >
           Select All
         </button>
         <button
+          type="button"
           onClick={onDeselectAll}
           className="text-sm px-3 py-1 rounded-lg bg-warm-hover hover:bg-warm-card text-white transition-colors border border-warm-border"
         >

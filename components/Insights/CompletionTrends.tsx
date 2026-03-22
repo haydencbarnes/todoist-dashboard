@@ -5,27 +5,13 @@
 
 import React, { memo, useState } from 'react';
 import { Tooltip } from 'react-tooltip';
-import { BsQuestionCircle } from 'react-icons/bs';
 import { HiArrowsRightLeft } from 'react-icons/hi2';
 import { calculateTaskAverages } from '../../utils/calculateTaskAverages';
 import TrendChart from '../TrendChart';
 import DeltaIndicator from '../shared/DeltaIndicator';
 import Spinner from '../shared/Spinner';
+import QuestionMark from '../shared/QuestionMark';
 import { CompletedTask } from '../../types';
-
-type QuestionMarkProps = {
-  content: string;
-};
-
-const QuestionMark: React.FC<QuestionMarkProps> = memo(({ content }) => (
-  <BsQuestionCircle
-    className="inline-block ml-2 text-warm-gray hover:text-white cursor-help"
-    data-tooltip-id="trends-tooltip"
-    data-tooltip-content={content}
-  />
-));
-
-QuestionMark.displayName = 'QuestionMark';
 
 type CompletionTrendsProps = {
   completedTasks: CompletedTask[];
@@ -44,7 +30,7 @@ const CompletionTrends: React.FC<CompletionTrendsProps> = ({ completedTasks, loa
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-xl font-semibold flex items-center text-white">
           Task Completion Trends
-          <QuestionMark content="Historical trends of your task completion patterns" />
+          <QuestionMark content="Historical trends of your task completion patterns" tooltipId="trends-tooltip" />
         </h3>
         {hasComparisonData && (
           <button
