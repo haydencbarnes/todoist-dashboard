@@ -357,7 +357,9 @@ export default function Dashboard(): JSX.Element {
               </div>
             </LazySection>
 
-            <SectionGroupHeader label="Insights & Trends" />
+            {(isSectionVisible('insights-summary') || isSectionVisible('completion-trends')) && (
+              <SectionGroupHeader label="Insights & Trends" />
+            )}
 
             {/* Insights Summary (Completion Rates, Project Distribution, Weekly Progress) */}
             <LazySection
@@ -387,7 +389,9 @@ export default function Dashboard(): JSX.Element {
               />
             </LazySection>
 
-            <SectionGroupHeader label="Projects & Tasks" />
+            {(isSectionVisible('project-velocity') || isSectionVisible('recently-completed-backlog') || isSectionVisible('recurring-tasks') || isSectionVisible('task-management') || isSectionVisible('completed-tasks') || isSectionVisible('label-distribution')) && (
+              <SectionGroupHeader label="Projects & Tasks" />
+            )}
 
             {/* Project Velocity & Focus Drift */}
             <LazySection
@@ -586,7 +590,9 @@ export default function Dashboard(): JSX.Element {
               </div>
             </LazySection>
 
-            <SectionGroupHeader label="Deep Dives" />
+            {(isSectionVisible('completion-heatmap') || isSectionVisible('daily-stats') || isSectionVisible('task-lead-time') || isSectionVisible('task-topics')) && (
+              <SectionGroupHeader label="Deep Dives" />
+            )}
 
             {/* Completion Heatmap */}
             <LazySection
