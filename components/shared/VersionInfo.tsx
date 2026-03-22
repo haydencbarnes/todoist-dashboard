@@ -15,6 +15,7 @@ const CHANGELOG = [
       'Milestone badges on streaks, contextual score labels, dynamic weekly greeting',
       'Accessibility: focus traps, ARIA labels, keyboard navigation, responsive touch targets',
       'Security: upgraded Next.js, flatted, and undici to patch vulnerabilities',
+      'Fix: overdue task calculation now uses local date comparison (thanks @haydencbarnes)',
     ]
   },
   {
