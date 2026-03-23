@@ -77,8 +77,8 @@ export default function Tasks({ getPageItems, projectData, groupByProject }: Tas
                 >
                   <div className="flex items-center space-x-3 w-full">
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between">
-                        <div className="flex flex-col">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0 flex-1">
                           <div className="pr-2 text-white transition-colors duration-200 print:text-gray-900">
                             <ReactMarkdown
                               unwrapDisallowed
@@ -101,7 +101,7 @@ export default function Tasks({ getPageItems, projectData, groupByProject }: Tas
                             </div>
                           )}
                         </div>
-                        <div className="flex flex-col items-end justify-center">
+                        <div className="shrink-0 flex flex-col items-end justify-center">
                           <div className="text-xs text-warm-gray whitespace-nowrap print:text-gray-600">
                             <IoIosCheckmarkCircle className="inline text-lg mr-1" title="Done" />
                             {new Date(task.completed_at).toLocaleDateString('en-US', {
@@ -149,8 +149,8 @@ export default function Tasks({ getPageItems, projectData, groupByProject }: Tas
                 title={projectInfo?.projectName}
               />
               <div className="flex-1 min-w-0">
-                <div className="flex flex-col sm:flex-row justify-between gap-y-2">
-                  <div className="flex flex-col">
+                <div className="flex flex-col gap-y-2 sm:flex-row sm:items-start sm:justify-between sm:gap-x-4">
+                  <div className="min-w-0 flex-1">
                     <div className="pr-2 text-white transition-colors duration-200 print:text-gray-900">
                       <ReactMarkdown
                         unwrapDisallowed
@@ -173,7 +173,7 @@ export default function Tasks({ getPageItems, projectData, groupByProject }: Tas
                       </div>
                     )}
                   </div>
-                  <div className="flex flex-col sm:items-end justify-center">
+                  <div className="shrink-0 flex flex-col justify-center sm:items-end">
                     <div className="text-xs text-white whitespace-nowrap print:inline">
                       <IoIosCheckmarkCircle className="inline text-lg mr-1" title="Done" />
                       {new Date(task.completed_at).toLocaleDateString('en-US', {
@@ -185,7 +185,10 @@ export default function Tasks({ getPageItems, projectData, groupByProject }: Tas
                         hour12: true
                       })}
                     </div>
-                    <div className="text-xs text-warm-gray group-hover:text-white transition-colors duration-200 whitespace-nowrap print:text-gray-600 sm:mt-1" title={projectInfo?.projectName}>
+                    <div
+                      className="max-w-full truncate text-xs text-warm-gray transition-colors duration-200 group-hover:text-white print:text-gray-600 sm:mt-1 sm:max-w-[12rem]"
+                      title={projectInfo?.projectName}
+                    >
                       {projectInfo?.projectName}
                     </div>
                   </div>

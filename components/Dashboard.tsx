@@ -423,7 +423,7 @@ export default function Dashboard(): JSX.Element {
               minHeight={400}
               className="grid grid-cols-1 lg:grid-cols-2 gap-6"
             >
-              <div className="bg-warm-card border border-warm-border rounded-2xl p-6 hover:bg-warm-hover transition-colors">
+              <div className="min-w-0 bg-warm-card border border-warm-border rounded-2xl p-6 hover:bg-warm-hover transition-colors">
                 <h2 className="text-xl sm:text-2xl font-semibold text-white mb-6 flex items-center gap-2">
                   Recently Completed
                   <span className="text-2xl">✅</span>
@@ -436,7 +436,7 @@ export default function Dashboard(): JSX.Element {
                 />
               </div>
 
-              <div className="bg-warm-card border border-warm-border rounded-2xl p-6 hover:bg-warm-hover transition-colors">
+              <div className="min-w-0 bg-warm-card border border-warm-border rounded-2xl p-6 hover:bg-warm-hover transition-colors">
                 <h2 className="text-xl sm:text-2xl font-semibold text-white mb-1">
                   Backlog Health
                   <QuestionMark content="Health score based on task age, overdue status, and due dates. Shows tasks needing attention: overdue tasks, very old tasks (60+ days), old unscheduled tasks (30+ days), and high-priority tasks without due dates." />
