@@ -12,8 +12,17 @@ interface DurationTaskItem {
   labels: string[];
 }
 
+interface NoDurationTaskItem {
+  id: string;
+  content: string;
+  project_id: string;
+  completed_at: string;
+  labels: string[];
+}
+
 interface SuccessResponse {
   tasks: DurationTaskItem[];
+  noDurationTasks: NoDurationTaskItem[];
 }
 
 interface ErrorResponse {
@@ -43,6 +52,8 @@ export default async function handler(
   response: NextApiResponse<SuccessResponse | ErrorResponse>
 ) {
   try {
+    response.setHeader('Cache-Control', 'no-store, max-age=0');
+
     const token = await getToken({ req: request });
     if (!token?.accessToken) {
       return response.status(401).json({ error: 'Not authenticated' });
@@ -60,6 +71,7 @@ export default async function handler(
 
     const accessToken = token.accessToken as string;
     const tasks: DurationTaskItem[] = [];
+    const noDurationTasks: NoDurationTaskItem[] = [];
     let cursor: string | null = null;
     let pageCount = 0;
 
@@ -92,16 +104,19 @@ export default async function handler(
         if (!raw || typeof raw !== 'object') continue;
         const item = raw as Record<string, unknown>;
         const duration = parseDuration(item.duration);
-        if (!duration) continue;
-
-        tasks.push({
+        const base = {
           id: String(item.id ?? ''),
           content: String(item.content ?? ''),
           project_id: String(item.project_id ?? ''),
           completed_at: String(item.completed_at ?? ''),
-          duration,
           labels: Array.isArray(item.labels) ? item.labels.map(String) : [],
-        });
+        };
+
+        if (duration) {
+          tasks.push({ ...base, duration });
+        } else {
+          noDurationTasks.push(base);
+        }
       }
 
       cursor = typeof data.next_cursor === 'string' && data.next_cursor ? data.next_cursor : null;
@@ -112,7 +127,7 @@ export default async function handler(
       }
     } while (cursor && pageCount < MAX_PAGES);
 
-    response.status(200).json({ tasks });
+    response.status(200).json({ tasks, noDurationTasks });
   } catch (error) {
     console.error('Error in getCompletedWithDuration:', error);
     response.status(500).json({

@@ -11,8 +11,17 @@ export interface DurationTask {
   labels: string[];
 }
 
+export interface NoDurationTask {
+  id: string;
+  content: string;
+  projectId: string;
+  completedAt: string;
+  labels: string[];
+}
+
 interface UseTaskDurationsResult {
   tasks: DurationTask[];
+  noDurationTasks: NoDurationTask[];
   isLoading: boolean;
   error: string | null;
 }
@@ -44,6 +53,7 @@ export function useTaskDurations(
   selectedProjectIds: string[]
 ): UseTaskDurationsResult {
   const [tasks, setTasks] = useState<DurationTask[]>([]);
+  const [noDurationTasks, setNoDurationTasks] = useState<NoDurationTask[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -66,6 +76,7 @@ export function useTaskDurations(
         const end = endIso ? new Date(endIso) : now;
         const windows = getDateWindows(start, end);
         const allTasks: DurationTask[] = [];
+        const allNoDuration: NoDurationTask[] = [];
 
         for (const window of windows) {
           if (signal.aborted) return;
@@ -77,7 +88,10 @@ export function useTaskDurations(
 
           const resp = await fetch(
             `/api/getCompletedWithDuration?${params}`,
-            { signal }
+            {
+              signal,
+              cache: 'no-store',
+            }
           );
 
           if (!resp.ok) {
@@ -97,16 +111,29 @@ export function useTaskDurations(
               });
             }
           }
+          if (Array.isArray(data.noDurationTasks)) {
+            for (const task of data.noDurationTasks) {
+              allNoDuration.push({
+                id: task.id,
+                content: task.content,
+                projectId: task.project_id,
+                completedAt: task.completed_at,
+                labels: task.labels ?? [],
+              });
+            }
+          }
         }
 
         if (signal.aborted) return;
 
         const projectIds = projectKey ? projectKey.split(',') : [];
-        const filtered = projectIds.length > 0
-          ? allTasks.filter(t => projectIds.includes(t.projectId))
-          : allTasks;
-
-        setTasks(filtered);
+        if (projectIds.length > 0) {
+          setTasks(allTasks.filter(t => projectIds.includes(t.projectId)));
+          setNoDurationTasks(allNoDuration.filter(t => projectIds.includes(t.projectId)));
+        } else {
+          setTasks(allTasks);
+          setNoDurationTasks(allNoDuration);
+        }
       } catch (err) {
         if (err instanceof DOMException && err.name === 'AbortError') return;
         if (!signal.aborted) {
@@ -123,5 +150,5 @@ export function useTaskDurations(
     return () => controller.abort();
   }, [startIso, endIso, preset, projectKey]);
 
-  return { tasks, isLoading, error };
+  return { tasks, noDurationTasks, isLoading, error };
 }

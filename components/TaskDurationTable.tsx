@@ -1,10 +1,13 @@
 import React, { useMemo } from 'react';
-import type { DateRange } from '@/types';
+import type { CompletedTask, DateRange, Label } from '@/types';
 import { useTaskDurations } from '@/hooks/useTaskDurations';
+import { stripLabelsFromContent } from '@/utils/parseLabelsFromContent';
 import Spinner from './shared/Spinner';
 
 interface TaskDurationTableProps {
+  completedTasks: CompletedTask[];
   dateRange: DateRange;
+  labels: Label[];
   selectedProjectIds: string[];
 }
 
@@ -15,22 +18,55 @@ interface LabelRow {
 }
 
 const NO_LABEL = 'No label';
+const MINUTES_PER_DAY = 480;
 
-function TaskDurationTable({ dateRange, selectedProjectIds }: TaskDurationTableProps) {
+function toMinutes(amount: number, unit: string): number {
+  return unit === 'day' ? amount * MINUTES_PER_DAY : amount;
+}
+
+function getDayKey(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function normalizeContent(content: string, labels: Label[]): string {
+  const stripped = stripLabelsFromContent(content, labels);
+  return stripped
+    .replace(/(^|\s)@[^\s]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+}
+
+function buildComparisonKey(content: string, completedAt: string, labels: Label[]): string {
+  return `${normalizeContent(content, labels)}|${getDayKey(completedAt)}`;
+}
+
+function TaskDurationTable({ completedTasks, dateRange, labels: labelsProp, selectedProjectIds }: TaskDurationTableProps) {
   const { tasks, isLoading, error } = useTaskDurations(dateRange, selectedProjectIds);
 
-  const { rows, taskCount, totalMinutes } = useMemo(() => {
-    const minuteTasks = tasks.filter(t => t.duration.unit === 'minute');
+  const { rows, taskCount, tasksWithoutDuration, totalCompletedCount, totalMinutes } = useMemo(() => {
     const totals = new Map<string, { count: number; minutes: number }>();
+    const availableCounts = new Map<string, number>();
 
-    for (const task of minuteTasks) {
-      const labels = task.labels.length > 0 ? task.labels : [NO_LABEL];
+    for (const task of tasks) {
+      const minutes = toMinutes(task.duration.amount, task.duration.unit);
+      const taskLabels = task.labels.length > 0 ? task.labels : [NO_LABEL];
+      const comparisonKey = buildComparisonKey(task.content, task.completedAt, labelsProp);
+      availableCounts.set(comparisonKey, (availableCounts.get(comparisonKey) ?? 0) + 1);
 
-      for (const label of labels) {
+      for (const label of taskLabels) {
         const key = label === NO_LABEL ? NO_LABEL : label;
         const entry = totals.get(key) ?? { count: 0, minutes: 0 };
         entry.count += 1;
-        entry.minutes += task.duration.amount;
+        entry.minutes += minutes;
         totals.set(key, entry);
       }
     }
@@ -43,12 +79,26 @@ function TaskDurationTable({ dateRange, selectedProjectIds }: TaskDurationTableP
       }))
       .sort((a, b) => b.totalMinutes - a.totalMinutes);
 
+    const missing = completedTasks.filter((task) => {
+      const comparisonKey = buildComparisonKey(task.content, task.completed_at, labelsProp);
+      const remaining = availableCounts.get(comparisonKey) ?? 0;
+
+      if (remaining > 0) {
+        availableCounts.set(comparisonKey, remaining - 1);
+        return false;
+      }
+
+      return true;
+    });
+
     return {
       rows: aggregated,
-      taskCount: minuteTasks.length,
-      totalMinutes: minuteTasks.reduce((sum, t) => sum + t.duration.amount, 0),
+      taskCount: tasks.length,
+      tasksWithoutDuration: missing,
+      totalCompletedCount: completedTasks.length,
+      totalMinutes: tasks.reduce((sum, t) => sum + toMinutes(t.duration.amount, t.duration.unit), 0),
     };
-  }, [tasks]);
+  }, [completedTasks, labelsProp, tasks]);
 
   if (isLoading) {
     return (
@@ -67,7 +117,7 @@ function TaskDurationTable({ dateRange, selectedProjectIds }: TaskDurationTableP
     );
   }
 
-  if (rows.length === 0) {
+  if (rows.length === 0 && tasksWithoutDuration.length === 0) {
     const isAllTime = dateRange.preset === 'all';
     return (
       <div className="flex flex-col items-center justify-center h-[220px] text-warm-gray">
@@ -84,51 +134,74 @@ function TaskDurationTable({ dateRange, selectedProjectIds }: TaskDurationTableP
   return (
     <div className="space-y-4">
       <p className="text-sm text-warm-gray">
-        {taskCount} task{taskCount === 1 ? '' : 's'}, {totalMinutes} min total
+        {totalCompletedCount} completed, {taskCount} with duration, {tasksWithoutDuration.length} without duration data, {totalMinutes.toLocaleString()} min total
         {dateRange.preset === 'all' && (
           <span className="opacity-70"> (last 90 days)</span>
         )}
       </p>
 
-      <div className="overflow-hidden rounded-xl border border-warm-border bg-warm-black/20">
-        <div className="max-h-[420px] overflow-auto">
-          <table className="min-w-full table-fixed">
-            <thead className="sticky top-0 z-10 bg-warm-card">
-              <tr className="border-b border-warm-border text-left text-xs uppercase tracking-wide text-warm-gray">
-                <th scope="col" className="w-[40%] px-4 py-3 font-medium">Label</th>
-                <th scope="col" className="w-[30%] px-4 py-3 text-right font-medium">Tasks Completed</th>
-                <th scope="col" className="w-[30%] px-4 py-3 text-right font-medium">Time (min)</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-warm-border">
-              {rows.map((row) => (
-                <tr key={row.label} className="align-top">
-                  <td className="px-4 py-3 text-sm text-white">
-                    {row.label}
+      {rows.length > 0 && (
+        <div className="overflow-hidden rounded-xl border border-warm-border bg-warm-black/20">
+          <div className="max-h-[420px] overflow-auto">
+            <table className="min-w-full table-fixed">
+              <thead className="sticky top-0 z-10 bg-warm-card">
+                <tr className="border-b border-warm-border text-left text-xs uppercase tracking-wide text-warm-gray">
+                  <th scope="col" className="w-[40%] px-4 py-3 font-medium">Label</th>
+                  <th scope="col" className="w-[30%] px-4 py-3 text-right font-medium">Tasks Completed</th>
+                  <th scope="col" className="w-[30%] px-4 py-3 text-right font-medium">Time (min)</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-warm-border">
+                {rows.map((row) => (
+                  <tr key={row.label} className="align-top">
+                    <td className="px-4 py-3 text-sm text-white">
+                      {row.label}
+                    </td>
+                    <td className="px-4 py-3 text-right text-sm tabular-nums text-warm-gray">
+                      {row.tasksCompleted}
+                    </td>
+                    <td className="px-4 py-3 text-right text-sm font-medium tabular-nums text-white">
+                      {row.totalMinutes}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr className="border-t border-warm-border bg-warm-card/50">
+                  <td className="px-4 py-3 text-sm font-semibold text-white">Total</td>
+                  <td className="px-4 py-3 text-right text-sm font-semibold tabular-nums text-white">
+                    {taskCount}
                   </td>
-                  <td className="px-4 py-3 text-right text-sm tabular-nums text-warm-gray">
-                    {row.tasksCompleted}
-                  </td>
-                  <td className="px-4 py-3 text-right text-sm font-medium tabular-nums text-white">
-                    {row.totalMinutes}
+                  <td className="px-4 py-3 text-right text-sm font-semibold tabular-nums text-white">
+                    {totalMinutes}
                   </td>
                 </tr>
-              ))}
-            </tbody>
-            <tfoot>
-              <tr className="border-t border-warm-border bg-warm-card/50">
-                <td className="px-4 py-3 text-sm font-semibold text-white">Total</td>
-                <td className="px-4 py-3 text-right text-sm font-semibold tabular-nums text-white">
-                  {taskCount}
-                </td>
-                <td className="px-4 py-3 text-right text-sm font-semibold tabular-nums text-white">
-                  {totalMinutes}
-                </td>
-              </tr>
-            </tfoot>
-          </table>
+              </tfoot>
+            </table>
+          </div>
         </div>
-      </div>
+      )}
+
+      {tasksWithoutDuration.length > 0 && (
+        <div className="rounded-xl border border-warm-border bg-warm-card/40 p-4">
+          <p className="text-sm font-medium text-white">
+            {tasksWithoutDuration.length} task{tasksWithoutDuration.length === 1 ? '' : 's'} without duration data
+          </p>
+          <p className="mt-1 text-xs text-warm-gray">
+            These completed tasks are included in the total count but could not be matched to a usable duration value.
+          </p>
+          <ul className="mt-2 space-y-1">
+            {tasksWithoutDuration.map((task) => (
+              <li
+                key={`${task.task_id}-${task.completed_at}`}
+                className="text-sm text-warm-gray"
+              >
+                {task.content}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }

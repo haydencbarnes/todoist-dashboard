@@ -466,7 +466,9 @@ export default function Dashboard(): JSX.Element {
                 </h2>
                 <div className="text-sm text-warm-gray mb-6">Duration by label for completed tasks</div>
                 <TaskDurationTable
+                  completedTasks={filteredCompletedTasks}
                   dateRange={dateRange}
+                  labels={data?.labels ?? []}
                   selectedProjectIds={selectedProjectIds}
                 />
               </div>
