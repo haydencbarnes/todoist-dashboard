@@ -1,12 +1,20 @@
 import { Session } from "next-auth/core/types";
 
+export type TodoistTaskDurationUnit = 'minute' | 'day';
+
+export interface TodoistTaskDuration {
+  amount: number;
+  unit: TodoistTaskDurationUnit;
+}
+
 // API Response Types - These match the actual API responses
 export type CompletedTask = {
   completed_at: string;
   content: string;
+  duration?: TodoistTaskDuration | null;
   id: string;
-  item_object: any | null;
-  meta_data: any | null;
+  item_object: Record<string, unknown> | null;
+  meta_data: Record<string, unknown> | null;
   note_count: number;
   notes: any[];
   project_id: string;
@@ -27,6 +35,7 @@ export type ActiveTask = {
   createdAt: string;
   creatorId: string;
   description: string;
+  duration?: TodoistTaskDuration | null;
   due?: {
     isRecurring: boolean;
     string: string;

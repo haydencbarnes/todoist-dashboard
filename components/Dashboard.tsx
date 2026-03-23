@@ -15,6 +15,7 @@ import RecentlyCompletedList from './RecentlyCompleted/RecentlyCompletedList';
 import BacklogHealth from './BacklogHealth';
 import CompletionStreak from './CompletionStreak';
 import RecurringTasksPreview from './RecurringTasks/RecurringTasksPreview';
+import TaskDurationTable from './TaskDurationTable';
 
 // Dynamic imports — heavy chart components (code-split)
 const CompletedTasksOverTime = dynamic(() => import('./CompletedTasksOverTime'), { ssr: false });
@@ -87,6 +88,7 @@ export default function Dashboard(): JSX.Element {
   const completionHeatmapRef = useExportSection('completion-heatmap', 'Completion Patterns Heatmap');
   const dailyStatsRef = useExportSection('daily-stats', 'Daily Streak & Activity Pattern');
   const taskLeadTimeRef = useExportSection('task-lead-time', 'Task Lead Time Analysis');
+  const taskDurationTableRef = useExportSection('task-duration-table', 'Task Duration Table');
   const taskTopicsRef = useExportSection('task-topics', 'Task Topics');
   const labelDistributionRef = useExportSection('label-distribution', 'Tasks by Label');
 
@@ -389,7 +391,7 @@ export default function Dashboard(): JSX.Element {
               />
             </LazySection>
 
-            {(isSectionVisible('project-velocity') || isSectionVisible('recently-completed-backlog') || isSectionVisible('recurring-tasks') || isSectionVisible('task-management') || isSectionVisible('completed-tasks') || isSectionVisible('label-distribution')) && (
+            {(isSectionVisible('project-velocity') || isSectionVisible('recently-completed-backlog') || isSectionVisible('task-duration-table') || isSectionVisible('recurring-tasks') || isSectionVisible('task-management') || isSectionVisible('completed-tasks') || isSectionVisible('label-distribution')) && (
               <SectionGroupHeader label="Projects & Tasks" />
             )}
 
@@ -446,6 +448,26 @@ export default function Dashboard(): JSX.Element {
                   activeTasks={filteredActiveTasks}
                   completedTasks={filteredCompletedTasks}
                   projectData={filteredProjects}
+                />
+              </div>
+            </LazySection>
+
+            {/* Task Duration Table */}
+            <LazySection
+              sectionId="task-duration-table"
+              exportRef={taskDurationTableRef}
+              visible={isSectionVisible('task-duration-table')}
+              minHeight={400}
+            >
+              <div className="bg-warm-card border border-warm-border rounded-2xl p-6 sm:p-8">
+                <h2 className="text-xl sm:text-2xl font-semibold text-white mb-1">
+                  Task Duration Table
+                  <QuestionMark content="Time spent per label based on Todoist duration estimates for completed tasks in the selected period." />
+                </h2>
+                <div className="text-sm text-warm-gray mb-6">Duration by label for completed tasks</div>
+                <TaskDurationTable
+                  dateRange={dateRange}
+                  selectedProjectIds={selectedProjectIds}
                 />
               </div>
             </LazySection>

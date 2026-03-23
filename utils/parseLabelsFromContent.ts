@@ -41,6 +41,33 @@ export function parseLabelsFromContent(content: string, validLabels: Label[]): s
 }
 
 /**
+ * Remove inline labels from task content while preserving the remaining text.
+ */
+export function stripLabelsFromContent(content: string, validLabels: Label[]): string {
+  if (!content) {
+    return '';
+  }
+
+  const matchedLabels = parseLabelsFromContent(content, validLabels);
+  if (matchedLabels.length === 0) {
+    return content.trim();
+  }
+
+  let strippedContent = content;
+  const sortedLabels = [...matchedLabels].sort((a, b) => b.length - a.length);
+
+  for (const labelName of sortedLabels) {
+    const pattern = `@${labelName}`;
+    const escapedPattern = escapeRegex(pattern);
+    const boundaryPattern = `(?<!\\S)${escapedPattern}(?=$|[\\s.,!?;:])`;
+    const removeRegex = new RegExp(boundaryPattern, 'gi');
+    strippedContent = strippedContent.replace(removeRegex, '');
+  }
+
+  return strippedContent.replace(/\s{2,}/g, ' ').trim();
+}
+
+/**
  * Escape special regex characters in a string
  */
 function escapeRegex(str: string): string {

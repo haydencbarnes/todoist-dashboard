@@ -12,7 +12,8 @@ import type {
   ErrorResponse,
   DashboardData,
   ActiveTask,
-  ProjectData
+  ProjectData,
+  TodoistTaskDuration
 } from '../../types';
 
 // Toggle dummy data testing via env flag to avoid bundling local fixtures in prod
@@ -37,6 +38,95 @@ class ValidationError extends Error {
   }
 }
 
+type ApiTaskRecord = Record<string, unknown>;
+
+function asObjectOrNull(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : null;
+}
+
+function getStringValue(source: ApiTaskRecord, ...keys: string[]): string {
+  for (const key of keys) {
+    const value = source[key];
+    if (typeof value === 'string') {
+      return value;
+    }
+    if (typeof value === 'number' || typeof value === 'bigint') {
+      return String(value);
+    }
+  }
+
+  return '';
+}
+
+function getNumberValue(source: ApiTaskRecord, ...keys: string[]): number {
+  for (const key of keys) {
+    const value = source[key];
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return value;
+    }
+  }
+
+  return 0;
+}
+
+function isTodoistTaskDuration(value: unknown): value is TodoistTaskDuration {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return false;
+  }
+
+  const duration = value as { amount?: unknown; unit?: unknown };
+  return (
+    typeof duration.amount === 'number' &&
+    Number.isFinite(duration.amount) &&
+    duration.amount > 0 &&
+    (duration.unit === 'minute' || duration.unit === 'day')
+  );
+}
+
+function normalizeTaskDuration(value: unknown): TodoistTaskDuration | null {
+  return isTodoistTaskDuration(value) ? value : null;
+}
+
+function extractTaskDuration(
+  source: ApiTaskRecord,
+  itemObject: Record<string, unknown> | null,
+  metaData: Record<string, unknown> | null
+): TodoistTaskDuration | null {
+  const candidates: unknown[] = [source.duration];
+  const containers = [itemObject, metaData];
+
+  for (const container of containers) {
+    if (!container) continue;
+
+    candidates.push(container.duration);
+
+    const nestedTask = asObjectOrNull(container.task);
+    const nestedItem = asObjectOrNull(container.item);
+    const nestedObject = asObjectOrNull(container.item_object) ?? asObjectOrNull(container.itemObject);
+
+    if (nestedTask) {
+      candidates.push(nestedTask.duration);
+    }
+    if (nestedItem) {
+      candidates.push(nestedItem.duration);
+    }
+    if (nestedObject) {
+      candidates.push(nestedObject.duration);
+    }
+  }
+
+  for (const candidate of candidates) {
+    const duration = normalizeTaskDuration(candidate);
+    if (duration) {
+      return duration;
+    }
+  }
+
+  return null;
+}
+
 async function loadDummyDataset(): Promise<ApiResponse> {
   const datasetPath = path.join(process.cwd(), 'test/data/fake-dataset.json');
 
@@ -50,32 +140,37 @@ async function loadDummyDataset(): Promise<ApiResponse> {
 }
 
 // Map Todoist API v1 Task to our ActiveTask type
-const mapToActiveTask = (task: SdkTask): ActiveTask => ({
-  assigneeId: task.responsibleUid || null,
-  assignerId: task.assignedByUid || null,
-  commentCount: task.noteCount,
-  content: task.content,
-  createdAt: task.addedAt || '',
-  creatorId: task.userId,
-  description: task.description,
-  due: task.due ? {
-    isRecurring: task.due.isRecurring,
-    string: task.due.string,
-    date: task.due.date,
-    datetime: task.due.datetime ?? null,
-    timezone: task.due.timezone ?? null,
-  } : null,
-  id: task.id,
-  isCompleted: task.checked,
-  labels: task.labels,
-  order: task.childOrder,
-  parentId: task.parentId || null,
-  priority: task.priority,
-  projectId: task.projectId,
-  sectionId: task.sectionId || null,
-  url: task.url,
-  deadline: task.deadline?.date || null,
-});
+const mapToActiveTask = (task: SdkTask): ActiveTask => {
+  const taskWithDuration = task as SdkTask & { duration?: TodoistTaskDuration | null };
+
+  return {
+    assigneeId: task.responsibleUid || null,
+    assignerId: task.assignedByUid || null,
+    commentCount: task.noteCount,
+    content: task.content,
+    createdAt: task.addedAt || '',
+    creatorId: task.userId,
+    description: task.description,
+    duration: normalizeTaskDuration(taskWithDuration.duration),
+    due: task.due ? {
+      isRecurring: task.due.isRecurring,
+      string: task.due.string,
+      date: task.due.date,
+      datetime: task.due.datetime ?? null,
+      timezone: task.due.timezone ?? null,
+    } : null,
+    id: task.id,
+    isCompleted: task.checked,
+    labels: task.labels,
+    order: task.childOrder,
+    parentId: task.parentId || null,
+    priority: task.priority,
+    projectId: task.projectId,
+    sectionId: task.sectionId || null,
+    url: task.url,
+    deadline: task.deadline?.date || null,
+  };
+};
 
 // Map Todoist API v1 Project to our ProjectData type
 const mapToProjectData = (project: PersonalProject | WorkspaceProject): ProjectData => ({
@@ -134,22 +229,28 @@ async function fetchCompletedTasksBatch(
 
   // Map v1 API response to CompletedTask format for compatibility
   // The v1 API uses camelCase (completedAt, projectId) but we map to the legacy snake_case format
-  return tasks.map((task: Record<string, string>): CompletedTask => ({
-    completed_at: task.completed_at ?? task.completedAt ?? '',
-    content: task.content ?? '',
-    id: task.id ?? '',
-    item_object: null,
-    meta_data: null,
-    note_count: 0,
-    notes: [],
-    project_id: task.project_id ?? task.projectId ?? '',
-    section_id: task.section_id ?? task.sectionId ?? '',
-    task_id: task.task_id ?? task.id ?? '',
-    user_id: task.user_id ?? task.userId ?? '',
-    v2_project_id: task.project_id ?? task.projectId ?? '',
-    v2_section_id: task.section_id ?? task.sectionId ?? '',
-    v2_task_id: task.task_id ?? task.id ?? '',
-  }));
+  return tasks.map((task: ApiTaskRecord): CompletedTask => {
+    const itemObject = asObjectOrNull(task.item_object) ?? asObjectOrNull(task.itemObject);
+    const metaData = asObjectOrNull(task.meta_data) ?? asObjectOrNull(task.metaData);
+
+    return {
+      completed_at: getStringValue(task, 'completed_at', 'completedAt'),
+      content: getStringValue(task, 'content'),
+      duration: extractTaskDuration(task, itemObject, metaData),
+      id: getStringValue(task, 'id'),
+      item_object: itemObject,
+      meta_data: metaData,
+      note_count: getNumberValue(task, 'note_count', 'noteCount'),
+      notes: Array.isArray(task.notes) ? task.notes : [],
+      project_id: getStringValue(task, 'project_id', 'projectId'),
+      section_id: getStringValue(task, 'section_id', 'sectionId'),
+      task_id: getStringValue(task, 'task_id', 'taskId', 'id'),
+      user_id: getStringValue(task, 'user_id', 'userId'),
+      v2_project_id: getStringValue(task, 'v2_project_id', 'v2ProjectId', 'project_id', 'projectId'),
+      v2_section_id: getStringValue(task, 'v2_section_id', 'v2SectionId', 'section_id', 'sectionId'),
+      v2_task_id: getStringValue(task, 'v2_task_id', 'v2TaskId', 'task_id', 'taskId', 'id'),
+    };
+  });
 }
 
 export default async function handler(
