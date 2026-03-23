@@ -54,10 +54,11 @@ function loadPreferences(): DashboardPreferences {
         ? parsed.dateRange
         : { start: null, end: null, preset: 'all' };
 
+    const VALID_PRESETS = ['all', 'today', 'yesterday', '7d', '30d', '90d', '6m', '1y', 'custom'];
     const dateRange: DateRange = {
       start: rawDateRange.start ? new Date(rawDateRange.start) : null,
       end: rawDateRange.end ? new Date(rawDateRange.end) : null,
-      preset: rawDateRange.preset || 'all',
+      preset: VALID_PRESETS.includes(rawDateRange.preset) ? rawDateRange.preset : 'all',
     };
 
     // Validate dates are not invalid

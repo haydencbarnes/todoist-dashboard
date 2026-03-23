@@ -250,7 +250,7 @@ export default function Dashboard(): JSX.Element {
               {/* Desktop Controls - hidden on mobile */}
               <div className="hidden sm:flex sm:flex-row sm:flex-wrap sm:items-center gap-3 sm:gap-4 w-full sm:w-auto">
                 {/* Filter Controls Group */}
-                <div className="flex flex-row items-center gap-3 p-1 bg-warm-card/50 border border-warm-border/50 rounded-xl w-auto">
+                <div className="flex flex-row flex-wrap items-center gap-2 p-1.5 bg-warm-card/50 border border-warm-border/50 rounded-xl">
                   {data?.projectData && (
                     <ProjectPicker
                       projects={data.projectData}
@@ -271,7 +271,7 @@ export default function Dashboard(): JSX.Element {
                           trackEvent('filter_reset_all', {});
                           clearPreferences();
                         }}
-                        className="flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-medium text-white bg-warm-hover hover:bg-warm-peach hover:text-white border border-warm-border hover:border-warm-peach rounded-lg transition-all duration-200"
+                        className="flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-warm-hover hover:bg-warm-peach hover:text-white border border-warm-border hover:border-warm-peach rounded-lg transition-all duration-200"
                         aria-label="Reset all filters"
                         data-tooltip-id="dashboard-tooltip"
                         data-tooltip-content="Clear both project and date filters to show all data"

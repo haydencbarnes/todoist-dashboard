@@ -1,92 +1,139 @@
-/* DateRangePicker Styles - Override react-datepicker defaults to match warm theme */
+/* Scope all overrides under the component wrapper */
+.dateRangePicker {
+  /* Component root — scoping hook */
+}
 
-.dateRangePicker :global(.react-datepicker) {
-  background-color: #1A1A1A;
-  /* warm-card */
+/* ──────────────────────────────────────────────
+   Scrollable month container
+   ────────────────────────────────────────────── */
+
+.calendarScroll {
+  max-height: 380px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 0 0.75rem;
+  scroll-behavior: smooth;
+
+  /* Thin warm-themed scrollbar */
+  scrollbar-width: thin;
+  scrollbar-color: #2A2A2A transparent;
+}
+
+.calendarScroll::-webkit-scrollbar {
+  width: 5px;
+}
+
+.calendarScroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.calendarScroll::-webkit-scrollbar-thumb {
+  background: #2A2A2A;
+  border-radius: 4px;
+}
+
+.calendarScroll::-webkit-scrollbar-thumb:hover {
+  background: #3A3A3A;
+}
+
+/* ──────────────────────────────────────────────
+   Jump-to month/year selects
+   ────────────────────────────────────────────── */
+
+.jumpSelect {
+  appearance: none;
+  width: 100%;
+  background: #202020;
+  color: #ffffff;
   border: 1px solid #2A2A2A;
-  /* warm-border */
   border-radius: 0.5rem;
-  font-family: inherit;
+  padding: 0.375rem 1.75rem 0.375rem 0.625rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.15s, background-color 0.15s;
 }
 
-.dateRangePicker :global(.react-datepicker__header) {
-  background-color: #202020;
-  /* warm-hover */
-  border-bottom: 1px solid #2A2A2A;
-  /* warm-border */
-  padding: 1rem;
-  border-top-left-radius: 0.5rem;
-  border-top-right-radius: 0.5rem;
+.jumpSelect:hover {
+  background-color: #2A2A2A;
+  border-color: #3A3A3A;
 }
 
-.dateRangePicker :global(.react-datepicker__current-month) {
+.jumpSelect:focus-visible {
+  border-color: #FF9B71;
+  box-shadow: 0 0 0 2px rgba(255, 155, 113, 0.25);
+}
+
+.jumpSelect option {
+  background: #1A1A1A;
   color: #ffffff;
 }
 
-.dateRangePicker :global(.react-datepicker__day-name) {
+/* ──────────────────────────────────────────────
+   react-day-picker v9 theme overrides (warm dark)
+   ────────────────────────────────────────────── */
+
+.calendarRoot {
+  --rdp-accent-color: #FF9B71;
+  --rdp-accent-background-color: rgba(255, 155, 113, 0.15);
+  --rdp-range_middle-background-color: rgba(255, 155, 113, 0.12);
+  --rdp-range_middle-color: #ffffff;
+  --rdp-range_start-color: #ffffff;
+  --rdp-range_end-color: #ffffff;
+  --rdp-range_start-background: #FF9B71;
+  --rdp-range_end-background: #FF9B71;
+  --rdp-day-height: 36px;
+  --rdp-day-width: 36px;
+  --rdp-day_button-border-radius: 8px;
+  --rdp-selected-border: none;
+  --rdp-today-color: #FF9B71;
+  --rdp-outside-opacity: 0.35;
+
+  color: #ffffff;
+  font-size: 0.875rem;
+}
+
+/* Stack months vertically */
+.dateRangePicker :global(.rdp-months) {
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+/* Month caption */
+.dateRangePicker :global(.rdp-month_caption) {
+  color: #ffffff;
+  font-weight: 600;
+  font-size: 0.8125rem;
+  padding: 0.5rem 0 0.25rem;
+}
+
+/* Weekday headers */
+.dateRangePicker :global(.rdp-weekday) {
   color: #9CA3AF;
-  /* warm-gray */
+  font-size: 0.75rem;
 }
 
-.dateRangePicker :global(.react-datepicker__day) {
+/* Day cells */
+.dateRangePicker :global(.rdp-day) {
   color: #ffffff;
-  border-radius: 0.375rem;
+  border-radius: 0.5rem;
 }
 
-.dateRangePicker :global(.react-datepicker__day:hover) {
-  background-color: #202020;
-  /* warm-hover */
-  border-radius: 0.375rem;
+.dateRangePicker :global(.rdp-day:hover:not(.rdp-disabled):not(.rdp-selected):not(.rdp-range_middle)) {
+  background: #202020;
 }
 
-.dateRangePicker :global(.react-datepicker__day--selected),
-.dateRangePicker :global(.react-datepicker__day--keyboard-selected) {
-  background-color: #FF9B71;
-  /* warm-peach */
-  color: #ffffff;
-  border-radius: 0.375rem;
+.dateRangePicker :global(.rdp-day_button) {
+  border-radius: 8px;
 }
 
-.dateRangePicker :global(.react-datepicker__day--selected:hover),
-.dateRangePicker :global(.react-datepicker__day--keyboard-selected:hover) {
-  background-color: #FF8A5B;
-  /* slightly darker warm-peach */
+/* Disabled / outside */
+.dateRangePicker :global(.rdp-disabled) {
+  color: #4B5563 !important;
+  opacity: 0.5;
 }
 
-.dateRangePicker :global(.react-datepicker__day--disabled) {
-  color: #4B5563;
-  cursor: not-allowed;
-}
-
-.dateRangePicker :global(.react-datepicker__day--disabled:hover) {
-  background-color: transparent;
-}
-
-.dateRangePicker :global(.react-datepicker__day--outside-month) {
+.dateRangePicker :global(.rdp-outside) {
   color: #6B7280;
-}
-
-.dateRangePicker :global(.react-datepicker__navigation) {
-  top: 1rem;
-}
-
-.dateRangePicker :global(.react-datepicker__navigation-icon::before) {
-  border-color: #9CA3AF;
-  /* warm-gray */
-}
-
-.dateRangePicker :global(.react-datepicker__navigation:hover *::before) {
-  border-color: #ffffff;
-}
-
-.dateRangePicker :global(.react-datepicker__triangle) {
-  display: none;
-}
-
-/* Custom calendar wrapper class */
-.customCalendar {
-  background-color: #1A1A1A !important;
-  /* warm-card */
-  border: 1px solid #2A2A2A !important;
-  /* warm-border */
 }

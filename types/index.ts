@@ -172,7 +172,7 @@ export interface Label {
 }
 
 // Date Range Types for Dashboard Filtering
-export type DateRangePreset = 'all' | '7d' | '30d' | '90d' | '6m' | '1y' | 'custom';
+export type DateRangePreset = 'all' | 'today' | 'yesterday' | '7d' | '30d' | '90d' | '6m' | '1y' | 'custom';
 
 export interface DateRange {
   start: Date | null;

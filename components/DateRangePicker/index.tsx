@@ -1,10 +1,11 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { HiOutlineChevronDown, HiCalendar, HiCheck, HiX } from 'react-icons/hi';
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
+import { HiCalendar, HiX, HiCheck, HiChevronDown } from 'react-icons/hi';
 import { motion, AnimatePresence } from 'framer-motion';
-import DatePicker from 'react-datepicker';
-import 'react-datepicker/dist/react-datepicker.css';
+import { DayPicker } from 'react-day-picker';
+import type { DateRange as RDPDateRange } from 'react-day-picker';
+import 'react-day-picker/style.css';
 import type { DateRange, DateRangePreset } from '@/types';
-import { getDateRangeFromPreset, getPresetLabel } from '@/utils/dateRangePresets';
+import { getDateRangeFromPreset, getPresetLabel, normalizeDateRange, matchPreset } from '@/utils/dateRangePresets';
 import { trackDateFilter } from '@/utils/analytics';
 import styles from './DateRangePicker.module.css';
 
@@ -14,355 +15,342 @@ interface DateRangePickerProps {
   fullWidth?: boolean;
 }
 
-// Preset options - defined outside component to prevent re-creation on every render
-const PRESETS: readonly DateRangePreset[] = ['all', '7d', '30d', '90d', '6m', '1y'];
+const PRESET_CHIPS: readonly DateRangePreset[] = [
+  'all', 'today', 'yesterday', '7d', '30d', '90d', '6m', '1y',
+];
+
+function formatDay(d: Date): string {
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
 
 const DateRangePicker: React.FC<DateRangePickerProps> = ({
   dateRange,
   onDateRangeChange,
   fullWidth = false,
 }) => {
-  const [isOpen, setIsOpen] = useState(false);
-  const [customStart, setCustomStart] = useState<Date | null>(dateRange.start);
-  const [customEnd, setCustomEnd] = useState<Date | null>(dateRange.end);
-  const [error, setError] = useState<string | null>(null);
+  const [calendarOpen, setCalendarOpen] = useState(false);
+  const [pendingRange, setPendingRange] = useState<RDPDateRange | undefined>(undefined);
+  const calendarRef = useRef<HTMLDivElement>(null);
 
-  // Check for reduced motion preference once on mount (not on every render)
   const [prefersReducedMotion] = useState(() =>
     typeof window !== 'undefined'
       ? window.matchMedia('(prefers-reduced-motion: reduce)').matches
       : false
   );
 
-  const dropdownRef = useRef<HTMLDivElement>(null);
-  const triggerButtonRef = useRef<HTMLButtonElement>(null);
-
-  // Close dropdown when clicking outside
+  // Close calendar on outside click
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
+    if (!calendarOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (calendarRef.current && !calendarRef.current.contains(e.target as Node)) {
+        setCalendarOpen(false);
       }
     };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [calendarOpen]);
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  // Update custom dates when dateRange changes externally
-  useEffect(() => {
-    if (dateRange.preset === 'custom') {
-      setCustomStart(dateRange.start);
-      setCustomEnd(dateRange.end);
+  const openCalendar = useCallback(() => {
+    if (dateRange.start && dateRange.end) {
+      setPendingRange({ from: dateRange.start, to: dateRange.end });
+    } else {
+      setPendingRange(undefined);
     }
+    setCalendarOpen(true);
   }, [dateRange]);
 
-  // Focus management when dropdown opens
-  useEffect(() => {
-    if (isOpen) {
-      // Focus first preset button after dropdown renders
-      const timeoutId = setTimeout(() => {
-        const firstButton = dropdownRef.current?.querySelector('[role="menuitem"]') as HTMLButtonElement;
-        firstButton?.focus();
-      }, 100);
-
-      // Clean up timeout if component unmounts or dropdown closes before timeout fires
-      return () => clearTimeout(timeoutId);
-    }
-    return undefined;
-  }, [isOpen]);
-
-  // Keyboard navigation for trigger button
-  const handleTriggerKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      setIsOpen(!isOpen);
-    } else if (e.key === 'Escape' && isOpen) {
-      e.preventDefault();
-      setIsOpen(false);
-      triggerButtonRef.current?.focus();
-    }
-  };
-
-  // Keyboard navigation for preset buttons
-  const handlePresetKeyDown = (e: React.KeyboardEvent, currentIndex: number) => {
-    if (e.key === 'ArrowDown') {
-      e.preventDefault();
-      const nextIndex = (currentIndex + 1) % PRESETS.length;
-      const nextButton = dropdownRef.current?.querySelectorAll('[role="menuitem"]')[nextIndex] as HTMLButtonElement;
-      nextButton?.focus();
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      const prevIndex = (currentIndex - 1 + PRESETS.length) % PRESETS.length;
-      const prevButton = dropdownRef.current?.querySelectorAll('[role="menuitem"]')[prevIndex] as HTMLButtonElement;
-      prevButton?.focus();
-    } else if (e.key === 'Escape') {
-      e.preventDefault();
-      setIsOpen(false);
-      triggerButtonRef.current?.focus();
-    } else if (e.key === 'Tab') {
-      // Allow Tab to move to custom range section
-      if (e.shiftKey && currentIndex === 0) {
-        e.preventDefault();
-        setIsOpen(false);
-        triggerButtonRef.current?.focus();
+  const handlePresetClick = useCallback((preset: DateRangePreset) => {
+    if (preset === 'custom') {
+      if (calendarOpen) {
+        setCalendarOpen(false);
+      } else {
+        openCalendar();
       }
+      return;
     }
-  };
 
-  const handlePresetClick = (preset: DateRangePreset) => {
+    setCalendarOpen(false);
     const { start, end } = getDateRangeFromPreset(preset);
     onDateRangeChange({ start, end, preset });
-    setError(null);
-    setIsOpen(false);
-    triggerButtonRef.current?.focus();
 
-    // Track the filter change
     if (preset === 'all') {
       trackDateFilter('clear');
     } else {
       trackDateFilter('preset', { preset });
     }
-  };
+  }, [onDateRangeChange, calendarOpen, openCalendar]);
 
-  const handleApplyCustomRange = () => {
-    if (!customStart || !customEnd) {
-      setError('Please select both start and end dates');
-      return;
+  const handleRangeSelect = useCallback((range: RDPDateRange | undefined) => {
+    setPendingRange(range ?? undefined);
+  }, []);
+
+  const handleApply = useCallback(() => {
+    if (!pendingRange?.from) return;
+
+    const from = pendingRange.from;
+    const to = pendingRange.to ?? pendingRange.from;
+    const { start, end } = normalizeDateRange(from, to);
+
+    if (start && end) {
+      const preset = matchPreset(start, end);
+      onDateRangeChange({ start, end, preset });
+      setCalendarOpen(false);
+
+      if (preset === 'custom') {
+        const daysRange = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+        trackDateFilter('custom', { daysRange });
+      } else {
+        trackDateFilter('preset', { preset });
+      }
     }
+  }, [pendingRange, onDateRangeChange]);
 
-    if (customStart > customEnd) {
-      setError('Start date must be before end date');
-      return;
-    }
-
-    const now = new Date();
-    if (customStart > now || customEnd > now) {
-      setError('Cannot select future dates');
-      return;
-    }
-
-    setError(null);
-    onDateRangeChange({
-      start: customStart,
-      end: customEnd,
-      preset: 'custom',
-    });
-    setIsOpen(false);
-    triggerButtonRef.current?.focus();
-
-    // Track custom date range (calculate days between dates)
-    const daysRange = Math.ceil((customEnd.getTime() - customStart.getTime()) / (1000 * 60 * 60 * 24));
-    trackDateFilter('custom', { daysRange });
-  };
-
-  const isActiveFilter = dateRange.preset !== 'all';
-
-  // Button label - show actual dates for custom range
-  const buttonLabel = useMemo(() => {
+  const customLabel = useMemo(() => {
     if (dateRange.preset === 'custom' && dateRange.start && dateRange.end) {
-      const startStr = dateRange.start.toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-      });
-      const endStr = dateRange.end.toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric',
-      });
-      return `${startStr} - ${endStr}`;
+      const startStr = formatDay(dateRange.start);
+      const endStr = formatDay(dateRange.end);
+      if (startStr === endStr) return startStr;
+      return `${startStr} – ${endStr}`;
     }
-    return getPresetLabel(dateRange.preset);
+    return null;
   }, [dateRange]);
 
-  // ARIA label for trigger button
-  const triggerAriaLabel = useMemo(() => {
-    return `Filter by date range, currently set to ${buttonLabel}`;
-  }, [buttonLabel]);
+  const pendingLabel = useMemo(() => {
+    if (!pendingRange?.from) return null;
+    const startStr = formatDay(pendingRange.from);
+    if (!pendingRange.to) return startStr;
+    const endStr = formatDay(pendingRange.to);
+    if (startStr === endStr) return startStr;
+    return `${startStr} – ${endStr}`;
+  }, [pendingRange]);
 
-  // Animation duration based on user's motion preference
-  const animationDuration = prefersReducedMotion ? 0 : 0.2;
+  const canApply = !!pendingRange?.from;
+  const animationDuration = prefersReducedMotion ? 0 : 0.15;
+
+  const MONTHS_TO_SHOW = 12;
+  const START_MONTH = useMemo(() => {
+    const d = new Date();
+    d.setMonth(d.getMonth() - (MONTHS_TO_SHOW - 1));
+    return new Date(d.getFullYear(), d.getMonth(), 1);
+  }, []);
+
+  const [visibleMonth, setVisibleMonth] = useState(START_MONTH);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll to bottom (current month) when the calendar opens
+  useEffect(() => {
+    if (calendarOpen && scrollRef.current) {
+      requestAnimationFrame(() => {
+        if (scrollRef.current) {
+          scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+        }
+      });
+    }
+  }, [calendarOpen]);
+
+  // Jump-to controls
+  const jumpMonth = useCallback((monthIndex: number) => {
+    setVisibleMonth(prev => new Date(prev.getFullYear(), monthIndex, 1));
+    requestAnimationFrame(() => {
+      if (scrollRef.current) {
+        scrollRef.current.scrollTop = 0;
+      }
+    });
+  }, []);
+
+  const jumpYear = useCallback((year: number) => {
+    setVisibleMonth(prev => new Date(year, prev.getMonth(), 1));
+    requestAnimationFrame(() => {
+      if (scrollRef.current) {
+        scrollRef.current.scrollTop = 0;
+      }
+    });
+  }, []);
+
+  const yearOptions = useMemo(() => {
+    const current = new Date().getFullYear();
+    const years: number[] = [];
+    for (let y = current; y >= 2015; y--) years.push(y);
+    return years;
+  }, []);
 
   return (
-    <div className={`relative z-10 ${styles.dateRangePicker}`} ref={dropdownRef}>
-      <button
-        type="button"
-        ref={triggerButtonRef}
-        onClick={() => setIsOpen(!isOpen)}
-        onKeyDown={handleTriggerKeyDown}
-        className={`flex items-center gap-2 px-4 py-2.5 sm:py-2 text-sm rounded-lg transition-colors duration-200 border  ${fullWidth ? 'w-full' : 'w-full sm:w-auto sm:min-w-[160px] sm:max-w-[280px]'} justify-between ${
-          isActiveFilter
-            ? 'bg-warm-peach/10 hover:bg-warm-peach/20 border-warm-peach text-warm-peach'
-            : 'bg-warm-hover hover:bg-warm-card border-warm-border text-white'
-        }`}
-        aria-label={triggerAriaLabel}
-        aria-expanded={isOpen}
-        aria-haspopup="menu"
+    <div
+      className={`${styles.dateRangePicker} relative z-10 ${fullWidth ? 'w-full' : ''}`}
+      ref={calendarRef}
+    >
+      {/* Chip row */}
+      <div
+        className={`flex flex-wrap gap-1.5 ${fullWidth ? 'w-full' : ''}`}
+        role="group"
+        aria-label="Date range filter"
       >
-        <div className="flex items-center gap-2 min-w-0">
-          <HiCalendar className="w-4 h-4 flex-shrink-0" />
-          <span className="truncate">{buttonLabel}</span>
-        </div>
-        <HiOutlineChevronDown
-          className={`w-4 h-4 flex-shrink-0 transition-transform duration-200 ${
-            isOpen ? 'transform rotate-180' : ''
-          }`}
-        />
-      </button>
+        {PRESET_CHIPS.map((preset) => {
+          const active = dateRange.preset === preset;
+          return (
+            <button
+              key={preset}
+              type="button"
+              onClick={() => handlePresetClick(preset)}
+              aria-pressed={active}
+              className={`
+                px-3 py-1.5 text-xs font-medium rounded-lg transition-colors duration-150
+                whitespace-nowrap select-none
+                ${active
+                  ? 'bg-warm-peach text-white'
+                  : 'bg-warm-hover text-warm-gray hover:text-white hover:bg-warm-card border border-warm-border'
+                }
+              `}
+            >
+              {getPresetLabel(preset)}
+            </button>
+          );
+        })}
 
+        {/* Custom chip */}
+        <button
+          type="button"
+          onClick={() => handlePresetClick('custom')}
+          aria-pressed={dateRange.preset === 'custom'}
+          aria-expanded={calendarOpen}
+          className={`
+            flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg
+            transition-colors duration-150 whitespace-nowrap select-none
+            ${dateRange.preset === 'custom'
+              ? 'bg-warm-peach text-white'
+              : 'bg-warm-hover text-warm-gray hover:text-white hover:bg-warm-card border border-warm-border'
+            }
+          `}
+        >
+          <HiCalendar className="w-3.5 h-3.5" />
+          {customLabel ?? 'Custom'}
+        </button>
+      </div>
+
+      {/* Calendar popover */}
       <AnimatePresence>
-        {isOpen && (
+        {calendarOpen && (
           <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
+            initial={{ opacity: 0, y: -8, scale: 0.97 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -8, scale: 0.97 }}
             transition={{ duration: animationDuration }}
-            className={`absolute left-0 top-full mt-2 py-3 bg-warm-card rounded-lg shadow-lg border border-warm-border  ${fullWidth ? 'right-0 w-full' : 'sm:right-0 w-full sm:w-80'}`}
-            role="menu"
-            aria-label="Date range filter options"
+            className={`
+              absolute left-0 top-full mt-2
+              bg-warm-card rounded-xl shadow-lg border border-warm-border
+              ${fullWidth ? 'right-0' : 'sm:right-auto'}
+            `}
+            style={{ zIndex: 50, width: 308 }}
           >
-            {/* Preset Buttons */}
-            <div className="px-3 space-y-1">
-              {PRESETS.map((preset, index) => (
+            {/* Sticky header: status + jump controls + close */}
+            <div className="sticky top-0 z-10 bg-warm-card rounded-t-xl border-b border-warm-border px-3 pt-3 pb-2 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-warm-gray font-medium">
+                  {!pendingRange?.from
+                    ? 'Pick a start date'
+                    : !pendingRange.to
+                      ? 'Pick an end date (or apply for single day)'
+                      : 'Range selected'}
+                </span>
                 <button
                   type="button"
-                  key={preset}
-                  onClick={() => handlePresetClick(preset)}
-                  onKeyDown={(e) => handlePresetKeyDown(e, index)}
-                  role="menuitem"
-                  aria-label={`${getPresetLabel(preset)} preset${dateRange.preset === preset ? ', selected' : ''}`}
-                  className={`w-full text-left px-3 py-2.5 sm:py-2 rounded-lg transition-colors duration-200 flex items-center justify-between ${
-                    dateRange.preset === preset
-                      ? 'bg-warm-peach text-white'
-                      : 'text-white hover:bg-warm-hover'
-                  }`}
+                  onClick={() => setCalendarOpen(false)}
+                  className="p-1 rounded-md hover:bg-warm-hover text-warm-gray hover:text-white transition-colors"
+                  aria-label="Close calendar"
                 >
-                  <span>{getPresetLabel(preset)}</span>
-                  {dateRange.preset === preset && <HiCheck className="w-5 h-5 flex-shrink-0" />}
+                  <HiX className="w-3.5 h-3.5" />
                 </button>
-              ))}
-            </div>
-
-            {/* Clear Filter Button (only shown when filter is active) */}
-            {isActiveFilter && (
-              <>
-                <div className="my-3 border-t border-warm-border" />
-                <div className="px-3">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      handlePresetClick('all');
-                    }}
-                    role="menuitem"
-                    className="w-full text-left px-3 py-2 text-warm-peach hover:bg-warm-hover rounded-lg transition-colors flex items-center gap-2"
-                    aria-label="Clear date filter"
+              </div>
+              {/* Jump-to dropdowns */}
+              <div className="flex items-center gap-2">
+                <div className="relative flex-1">
+                  <select
+                    value={visibleMonth.getMonth()}
+                    onChange={(e) => jumpMonth(Number(e.target.value))}
+                    className={styles.jumpSelect}
+                    aria-label="Jump to month"
                   >
-                    <HiX className="w-4 h-4" />
-                    Clear Date Filter
-                  </button>
+                    {Array.from({ length: 12 }, (_, i) => (
+                      <option key={i} value={i}>
+                        {new Date(2000, i).toLocaleString('en-US', { month: 'long' })}
+                      </option>
+                    ))}
+                  </select>
+                  <HiChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-warm-gray" />
                 </div>
-              </>
-            )}
-
-            {/* Divider */}
-            <div className="my-3 border-t border-warm-border" />
-
-            {/* Custom Date Range */}
-            <div className="px-3">
-              <div className="text-warm-gray text-sm mb-2 font-medium">Custom Range</div>
-              <div className="space-y-2">
-                <div>
-                  <label
-                    id="start-date-label"
-                    htmlFor="start-date-input"
-                    className="text-xs text-warm-gray block mb-1"
+                <div className="relative">
+                  <select
+                    value={visibleMonth.getFullYear()}
+                    onChange={(e) => jumpYear(Number(e.target.value))}
+                    className={styles.jumpSelect}
+                    aria-label="Jump to year"
                   >
-                    Start Date
-                  </label>
-                  <DatePicker
-                    id="start-date-input"
-                    selected={customStart}
-                    onChange={(date: Date | null) => {
-                      setCustomStart(date);
-                      setError(null);
-                    }}
-                    maxDate={new Date()}
-                    dateFormat="MMM d, yyyy"
-                    className="w-full px-3 py-2 bg-warm-hover border border-warm-border rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-warm-peach"
-                    placeholderText="Select start date"
-                    aria-labelledby="start-date-label"
-                    aria-describedby="start-date-help"
-                    {...({ calendarClassName: styles.customCalendar } as any)}
-                  />
-                  <span id="start-date-help" className="sr-only">
-                    Use arrow keys to navigate calendar. Enter to select. Escape to close. Future dates are not allowed.
-                  </span>
+                    {yearOptions.map(y => (
+                      <option key={y} value={y}>{y}</option>
+                    ))}
+                  </select>
+                  <HiChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-warm-gray" />
                 </div>
-                <div>
-                  <label
-                    id="end-date-label"
-                    htmlFor="end-date-input"
-                    className="text-xs text-warm-gray block mb-1"
-                  >
-                    End Date
-                  </label>
-                  <DatePicker
-                    id="end-date-input"
-                    selected={customEnd}
-                    onChange={(date: Date | null) => {
-                      setCustomEnd(date);
-                      setError(null);
-                    }}
-                    minDate={customStart || undefined}
-                    maxDate={new Date()}
-                    dateFormat="MMM d, yyyy"
-                    className="w-full px-3 py-2 bg-warm-hover border border-warm-border rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-warm-peach"
-                    placeholderText="Select end date"
-                    aria-labelledby="end-date-label"
-                    aria-describedby="end-date-help"
-                    {...({ calendarClassName: styles.customCalendar } as any)}
-                  />
-                  <span id="end-date-help" className="sr-only">
-                    Use arrow keys to navigate calendar. Enter to select. Escape to close. Must be after start date. Future dates are not allowed.
-                  </span>
-                </div>
-
-                {/* Error Message */}
-                {error && (
-                  <div
-                    role="alert"
-                    aria-live="polite"
-                    className="px-3 py-2 bg-warm-peach/10 border border-warm-peach/30 rounded-lg text-warm-peach text-sm flex items-start gap-2"
-                  >
-                    <HiX className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                    <span>{error}</span>
-                  </div>
-                )}
-
-                <button
-                  type="button"
-                  onClick={handleApplyCustomRange}
-                  disabled={!customStart || !customEnd}
-                  className="w-full px-3 py-2 mt-2 bg-warm-peach hover:bg-warm-peach/90 text-white rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
-                  aria-label="Apply custom date range"
-                >
-                  Apply Custom Range
-                </button>
               </div>
             </div>
 
-            {/* Screen reader announcement for date changes */}
+            {/* Scrollable month grid */}
             <div
-              className="sr-only"
-              role="status"
-              aria-live="polite"
-              aria-atomic="true"
+              ref={scrollRef}
+              className={styles.calendarScroll}
             >
-              {isActiveFilter ? `Date filter applied: ${buttonLabel}` : 'Date filter cleared'}
+              <DayPicker
+                mode="range"
+                month={visibleMonth}
+                onMonthChange={setVisibleMonth}
+                startMonth={new Date(2015, 0)}
+                endMonth={new Date()}
+                numberOfMonths={MONTHS_TO_SHOW}
+                selected={pendingRange}
+                onSelect={handleRangeSelect}
+                disabled={{ after: new Date() }}
+                className={styles.calendarRoot ?? ''}
+                min={0}
+                hideNavigation
+              />
+            </div>
+
+            {/* Footer: selection summary + apply */}
+            <div className="border-t border-warm-border px-3 py-2 flex items-center justify-between gap-2">
+              <span className="text-xs text-warm-gray truncate">
+                {pendingLabel ?? 'No dates selected'}
+              </span>
+              <div className="flex items-center gap-1.5">
+                {canApply && (
+                  <button
+                    type="button"
+                    onClick={() => setPendingRange(undefined)}
+                    className="px-2 py-1 text-xs text-warm-gray hover:text-white rounded-md hover:bg-warm-hover transition-colors"
+                  >
+                    Clear
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={handleApply}
+                  disabled={!canApply}
+                  className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors duration-150 bg-warm-peach text-white hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  <HiCheck className="w-3.5 h-3.5" />
+                  Apply
+                </button>
+              </div>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Screen reader announcement */}
+      <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+        {dateRange.preset !== 'all'
+          ? `Date filter: ${customLabel ?? getPresetLabel(dateRange.preset)}`
+          : 'No date filter'}
+      </div>
     </div>
   );
 };
