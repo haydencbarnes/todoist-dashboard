@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import type { CompletedTask, DateRange, Label } from '@/types';
 import { useTaskDurations } from '@/hooks/useTaskDurations';
 import { stripLabelsFromContent } from '@/utils/parseLabelsFromContent';
@@ -51,6 +51,7 @@ function buildComparisonKey(content: string, completedAt: string, labels: Label[
 
 function TaskDurationTable({ completedTasks, dateRange, labels: labelsProp, selectedProjectIds }: TaskDurationTableProps) {
   const { tasks, isLoading, error } = useTaskDurations(dateRange, selectedProjectIds);
+  const [showTasksWithoutDuration, setShowTasksWithoutDuration] = useState(false);
 
   const { rows, taskCount, tasksWithoutDuration, totalCompletedCount, totalMinutes } = useMemo(() => {
     const totals = new Map<string, { count: number; minutes: number }>();
@@ -99,6 +100,10 @@ function TaskDurationTable({ completedTasks, dateRange, labels: labelsProp, sele
       totalMinutes: tasks.reduce((sum, t) => sum + toMinutes(t.duration.amount, t.duration.unit), 0),
     };
   }, [completedTasks, labelsProp, tasks]);
+
+  useEffect(() => {
+    setShowTasksWithoutDuration(tasksWithoutDuration.length > 0 && tasksWithoutDuration.length < 6);
+  }, [tasksWithoutDuration.length]);
 
   if (isLoading) {
     return (
@@ -184,22 +189,36 @@ function TaskDurationTable({ completedTasks, dateRange, labels: labelsProp, sele
 
       {tasksWithoutDuration.length > 0 && (
         <div className="rounded-xl border border-warm-border bg-warm-card/40 p-4">
-          <p className="text-sm font-medium text-white">
-            {tasksWithoutDuration.length} task{tasksWithoutDuration.length === 1 ? '' : 's'} without duration data
-          </p>
+          <button
+            type="button"
+            onClick={() => setShowTasksWithoutDuration((current) => !current)}
+            aria-expanded={showTasksWithoutDuration}
+            className="flex w-full items-center justify-between gap-3 text-left"
+          >
+            <span className="text-sm font-medium text-white">
+              {tasksWithoutDuration.length} task{tasksWithoutDuration.length === 1 ? '' : 's'} without duration data
+            </span>
+            <span className="text-xs font-medium text-warm-gray">
+              {showTasksWithoutDuration ? 'Hide' : 'Show'}
+            </span>
+          </button>
           <p className="mt-1 text-xs text-warm-gray">
             These completed tasks are included in the total count but could not be matched to a usable duration value.
           </p>
-          <ul className="mt-2 space-y-1">
-            {tasksWithoutDuration.map((task) => (
-              <li
-                key={`${task.task_id}-${task.completed_at}`}
-                className="text-sm text-warm-gray"
-              >
-                {task.content}
-              </li>
-            ))}
-          </ul>
+          {showTasksWithoutDuration && (
+            <div className="mt-2 max-h-64 overflow-auto pr-1">
+              <ul className="space-y-1">
+                {tasksWithoutDuration.map((task) => (
+                  <li
+                    key={`${task.task_id}-${task.completed_at}`}
+                    className="text-sm text-warm-gray"
+                  >
+                    {task.content}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       )}
     </div>
