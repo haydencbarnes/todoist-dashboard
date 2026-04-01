@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { BsQuestionCircle } from 'react-icons/bs';
-import { Tooltip } from 'react-tooltip';
+import AppTooltip from './shared/AppTooltip';
+import QuestionMark from './shared/QuestionMark';
 
 interface Task {
   completed_at: string;
@@ -56,15 +56,12 @@ const MetricCard: React.FC<MetricCardProps> = ({ title, value, tooltip, color = 
       <div className="h-full flex flex-col justify-between gap-2">
         <div className="text-sm text-warm-gray print:text-gray-600 flex items-center">
           {title}
-          <button
-            type="button"
-            className="inline-flex items-center justify-center ml-1.5 text-warm-gray hover:text-white cursor-help focus:outline-none focus:text-white print:hidden"
-            data-tooltip-id="goal-progress-tooltip"
-            data-tooltip-content={tooltip}
-            aria-label={tooltip}
-          >
-            <BsQuestionCircle className="h-4 w-4" />
-          </button>
+          <QuestionMark
+            content={tooltip}
+            tooltipId="goal-progress-tooltip"
+            className="ml-1.5 print:hidden focus:ring-offset-warm-hover"
+            iconClassName="h-4 w-4"
+          />
         </div>
         <div className={`text-xl font-semibold ${colorMap[color]} ${printColorMap[color]}`}>{value}</div>
       </div>
@@ -166,13 +163,7 @@ const GoalProgress: React.FC<GoalProgressProps> = ({ allData }) => {
           color="yellow"
         />
       </div>
-      <Tooltip
-        id="goal-progress-tooltip"
-        place="top"
-        className="z-50 max-w-xs text-center"
-        positionStrategy="fixed"
-        openOnClick={true}
-      />
+      <AppTooltip id="goal-progress-tooltip" />
     </>
   );
 };

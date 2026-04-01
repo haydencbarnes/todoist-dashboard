@@ -1,8 +1,8 @@
 import React from 'react';
 import { MAX_TASKS } from '../../utils/constants';
-import { Tooltip } from 'react-tooltip';
 import { BsExclamationTriangle } from 'react-icons/bs';
 import { trackData } from '@/utils/analytics';
+import AppTooltip from './AppTooltip';
 
 interface LoadingIndicatorProps {
   loading: boolean;
@@ -100,7 +100,7 @@ const LoadingIndicator: React.FC<LoadingIndicatorProps> = ({
               data-tooltip-id="error-tooltip"
               data-tooltip-content={`Only partial data loaded: ${loadError.message}`}
             />
-            <Tooltip id="error-tooltip" positionStrategy="fixed" openOnClick={true} className="z-50 max-w-xs text-center" />
+            <AppTooltip id="error-tooltip" />
           </>
         )}
       </div>

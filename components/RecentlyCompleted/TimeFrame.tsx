@@ -1,4 +1,4 @@
-import { Tooltip } from 'react-tooltip';
+import AppTooltip from '../shared/AppTooltip';
 
 interface Filter {
   id: 'today' | 'week' | 'month';
@@ -56,7 +56,7 @@ export default function TimeFrame({
           </button>
         </div>
       ))}
-      <Tooltip id="timeframe-tooltip" positionStrategy="fixed" openOnClick={true} className="z-50 max-w-xs text-center" />
+      <AppTooltip id="timeframe-tooltip" />
     </div>
   );
 }

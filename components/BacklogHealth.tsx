@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { ActiveTask, CompletedTask, ProjectData } from '../types';
 import { calculateBacklogHealth } from '../utils/calculateBacklogHealth';
 import { BsChevronLeft, BsChevronRight } from 'react-icons/bs';
-import { Tooltip } from 'react-tooltip';
+import AppTooltip from './shared/AppTooltip';
 
 interface BacklogHealthProps {
   activeTasks: ActiveTask[];
@@ -237,7 +237,7 @@ const BacklogHealth: React.FC<BacklogHealthProps> = ({ activeTasks, completedTas
         </div>
       )}
 
-      <Tooltip id="backlog-tooltip" positionStrategy="fixed" openOnClick={true} className="z-50 max-w-xs text-center" />
+      <AppTooltip id="backlog-tooltip" />
     </div>
   );
 };

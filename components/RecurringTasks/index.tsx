@@ -1,7 +1,5 @@
 import React, { useState, useMemo } from 'react';
 import { BsCalendar3, BsCalendarWeek, BsCalendarMonth, BsThreeDots } from 'react-icons/bs';
-import { BsQuestionCircle } from 'react-icons/bs';
-import { Tooltip } from 'react-tooltip';
 import { Virtuoso } from 'react-virtuoso';
 import { ActiveTask, ProjectData } from '../../types';
 import { TaskCalendar } from './TaskCalendar';
@@ -10,6 +8,8 @@ import { RecurrencePattern } from './streaks/types';
 import { getTaskFrequency, calculateStats } from './utils';
 import { parsePattern } from './streaks/index';
 import { trackChartInteraction } from '@/utils/analytics';
+import AppTooltip from '../shared/AppTooltip';
+import QuestionMark from '../shared/QuestionMark';
 
 interface TaskItemProps {
   taskData: RecurringTaskData;
@@ -148,15 +148,10 @@ const RecurringTasksCard: React.FC<Props> = ({ activeTasks, allCompletedTasks, p
           <div className="bg-warm-card/50 border border-warm-peach/30 rounded-2xl p-6 hover:border-warm-peach/50 transition-all">
             <div className="flex items-center justify-between mb-3">
               <span className="text-sm text-warm-gray font-medium">Recurring Tasks</span>
-              <button
-                type="button"
-                className="text-warm-gray hover:text-warm-peach cursor-help focus:outline-none focus:text-warm-peach"
-                data-tooltip-id="recurring-tasks-tooltip"
-                data-tooltip-content="Total number of recurring tasks in your Todoist"
-                aria-label="Total number of recurring tasks in your Todoist"
-              >
-                <BsQuestionCircle className="w-4 h-4" />
-              </button>
+              <QuestionMark
+                content="Total number of recurring tasks in your Todoist"
+                tooltipId="recurring-tasks-tooltip"
+              />
             </div>
             <div className="text-5xl font-semibold text-warm-peach">
               {recurringTasksData.length}
@@ -166,15 +161,10 @@ const RecurringTasksCard: React.FC<Props> = ({ activeTasks, allCompletedTasks, p
           <div className="bg-warm-card/50 border border-warm-blue/30 rounded-2xl p-6 hover:border-warm-blue/50 transition-all">
             <div className="flex items-center justify-between mb-3">
               <span className="text-sm text-warm-gray font-medium">Total Completions</span>
-              <button
-                type="button"
-                className="text-warm-gray hover:text-warm-blue cursor-help focus:outline-none focus:text-warm-blue"
-                data-tooltip-id="recurring-tasks-tooltip"
-                data-tooltip-content="Number of times recurring tasks have been completed"
-                aria-label="Number of times recurring tasks have been completed"
-              >
-                <BsQuestionCircle className="w-4 h-4" />
-              </button>
+              <QuestionMark
+                content="Number of times recurring tasks have been completed"
+                tooltipId="recurring-tasks-tooltip"
+              />
             </div>
             <div className="text-5xl font-semibold text-warm-blue">
               {allCompletedTasks.filter(task =>
@@ -186,15 +176,10 @@ const RecurringTasksCard: React.FC<Props> = ({ activeTasks, allCompletedTasks, p
           <div className="bg-warm-card/50 border border-warm-sage/30 rounded-2xl p-6 hover:border-warm-sage/50 transition-all">
             <div className="flex items-center justify-between mb-3">
               <span className="text-sm text-warm-gray font-medium">Avg. Completion</span>
-              <button
-                type="button"
-                className="text-warm-gray hover:text-warm-sage cursor-help focus:outline-none focus:text-warm-sage"
-                data-tooltip-id="recurring-tasks-tooltip"
-                data-tooltip-content="Average completion rate across all recurring tasks"
-                aria-label="Average completion rate across all recurring tasks"
-              >
-                <BsQuestionCircle className="w-4 h-4" />
-              </button>
+              <QuestionMark
+                content="Average completion rate across all recurring tasks"
+                tooltipId="recurring-tasks-tooltip"
+              />
             </div>
             <div className="text-5xl font-semibold text-warm-sage">
               {Math.round(
@@ -206,7 +191,7 @@ const RecurringTasksCard: React.FC<Props> = ({ activeTasks, allCompletedTasks, p
         </div>
       </div>
 
-      <Tooltip id="recurring-tasks-tooltip" positionStrategy="fixed" openOnClick={true} className="z-50 max-w-xs text-center" />
+      <AppTooltip id="recurring-tasks-tooltip" />
 
       {/* Frequency Selector */}
       <div className="flex-none bg-warm-card/50 border border-warm-border rounded-2xl p-2 mb-6">

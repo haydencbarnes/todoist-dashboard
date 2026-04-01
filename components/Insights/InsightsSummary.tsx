@@ -4,9 +4,9 @@
  */
 
 import React, { memo } from 'react';
-import { Tooltip } from 'react-tooltip';
 import { calculateCompletionRates } from '../../utils/calculateCompletionRates';
 import { calculateCreatedTasks } from '../../utils/calculateCreatedTasks';
+import AppTooltip from '../shared/AppTooltip';
 import QuestionMark from '../shared/QuestionMark';
 import { CompletedTask, ProjectData } from '../../types';
 
@@ -170,7 +170,7 @@ const InsightsSummary: React.FC<InsightsSummaryProps> = ({
         </div>
       </div>
 
-      <Tooltip id="summary-tooltip" positionStrategy="fixed" openOnClick={true} className="z-50 max-w-xs text-center" />
+      <AppTooltip id="summary-tooltip" />
     </div>
   );
 };

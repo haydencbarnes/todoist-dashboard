@@ -4,10 +4,10 @@
  */
 
 import React, { memo, useState } from 'react';
-import { Tooltip } from 'react-tooltip';
 import { HiArrowsRightLeft } from 'react-icons/hi2';
 import { calculateTaskAverages } from '../../utils/calculateTaskAverages';
 import TrendChart from '../TrendChart';
+import AppTooltip from '../shared/AppTooltip';
 import DeltaIndicator from '../shared/DeltaIndicator';
 import Spinner from '../shared/Spinner';
 import QuestionMark from '../shared/QuestionMark';
@@ -192,7 +192,7 @@ const CompletionTrends: React.FC<CompletionTrendsProps> = ({ completedTasks, loa
         </div>
       </div>
 
-      <Tooltip id="trends-tooltip" positionStrategy="fixed" openOnClick={true} className="z-50 max-w-xs text-center" />
+      <AppTooltip id="trends-tooltip" />
     </div>
   );
 };

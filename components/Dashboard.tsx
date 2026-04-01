@@ -1,7 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import dynamic from 'next/dynamic';
 import { useSession } from 'next-auth/react';
-import { Tooltip } from 'react-tooltip';
 import { SiTodoist } from 'react-icons/si';
 import { HiX } from 'react-icons/hi';
 import { AnimatePresence } from 'framer-motion';
@@ -32,6 +31,7 @@ const TaskLeadTime = dynamic(() => import('./TaskLeadTime'), { ssr: false });
 // Layout & shared
 import { MAX_TASKS } from '../utils/constants';
 import QuestionMark from './shared/QuestionMark';
+import AppTooltip from './shared/AppTooltip';
 import LoadingIndicator from './shared/LoadingIndicator';
 import LazySection from './shared/LazySection';
 import { useDashboardData } from '../hooks/useDashboardData';
@@ -721,14 +721,7 @@ export default function Dashboard(): JSX.Element {
             </div>
           </LazySection>
         </div>
-        <Tooltip
-          id="dashboard-tooltip"
-          place="top"
-          className="z-50 max-w-xs text-center"
-          noArrow={true}
-          positionStrategy="fixed"
-          openOnClick={true}
-        />
+        <AppTooltip id="dashboard-tooltip" />
 
         {/* Export Modal */}
         <ExportModal

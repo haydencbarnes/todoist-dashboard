@@ -4,12 +4,12 @@
  */
 
 import React, { memo } from 'react';
-import { Tooltip } from 'react-tooltip';
 import { calculateMostProductiveDay } from '../../utils/calculateMostProductiveDay';
 import { calculateMostProductiveTimeOfDay } from '../../utils/calculateMostProductiveTimeOfDay';
 import { calculateMostProductiveDayOfWeek } from '../../utils/calculateMostProductiveDayOfWeek';
 import { calculateCompletionRates } from '../../utils/calculateCompletionRates';
 import { getDayOfWeekName, DayOfWeek } from '../../utils/getDayOfWeekName';
+import AppTooltip from '../shared/AppTooltip';
 import QuestionMark from '../shared/QuestionMark';
 import { CompletedTask } from '../../types';
 
@@ -143,7 +143,7 @@ const ProductivityScore: React.FC<ProductivityScoreProps> = ({ completedTasks, l
         </div>
       </div>
 
-      <Tooltip id="productivity-tooltip" positionStrategy="fixed" openOnClick={true} className="z-50 max-w-xs text-center" />
+      <AppTooltip id="productivity-tooltip" />
     </div>
   );
 };

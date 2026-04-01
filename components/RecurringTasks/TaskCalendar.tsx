@@ -5,10 +5,10 @@ import { IoMdTrendingUp } from 'react-icons/io';
 import { FaCheckCircle } from 'react-icons/fa';
 import { ActiveTask, ProjectData, TodoistColor } from '../../types';
 import { TaskStats } from './types';
-import { Tooltip } from 'react-tooltip';
 import { Sparklines, SparklinesLine, SparklinesBars } from 'react-sparklines';
 import { calculateStats, getTrendData } from './utils/index';
 import { getColorClass } from '../../utils/projectUtils';
+import AppTooltip from '../shared/AppTooltip';
 
 interface TaskCalendarProps {
   taskData: TaskStats;
@@ -280,7 +280,7 @@ export const TaskCalendar = React.memo(({ taskData, task, project }: TaskCalenda
           </div>
         ))}
       </div>
-      <Tooltip id="task-calendar-tooltip" positionStrategy="fixed" openOnClick={true} className="z-50 max-w-xs text-center" />
+      <AppTooltip id="task-calendar-tooltip" />
     </div>
   );
 });
