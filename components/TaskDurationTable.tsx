@@ -36,6 +36,10 @@ function getDayKey(value: string): string {
   return `${year}-${month}-${day}`;
 }
 
+function formatMinutesWithHours(minutes: number): string {
+  return `${minutes.toLocaleString()} (${(minutes / 60).toFixed(1)}hr)`;
+}
+
 function normalizeContent(content: string, labels: Label[]): string {
   const stripped = stripLabelsFromContent(content, labels);
   return stripped
@@ -178,7 +182,7 @@ function TaskDurationTable({ completedTasks, dateRange, labels: labelsProp, sele
                     {taskCount}
                   </td>
                   <td className="px-4 py-3 text-right text-sm font-semibold tabular-nums text-white">
-                    {totalMinutes}
+                    {formatMinutesWithHours(totalMinutes)}
                   </td>
                 </tr>
               </tfoot>
