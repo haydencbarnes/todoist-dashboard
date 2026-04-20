@@ -5,6 +5,7 @@ import { EChartsOption } from 'echarts';
 import { CallbackDataParams } from 'echarts/types/dist/shared';
 import { CompletedTask } from '../types';
 import escapeHtml from '@/utils/escapeHtml';
+import { getEffectiveCompletedAt } from '@/utils/completionHistory';
 import Spinner from './shared/Spinner';
 import { CHART_TOOLTIP, AXIS_LABEL, AXIS_LINE, SPLIT_LINE, WARM_BLUE, WARM_BLUE_LIGHT } from '../utils/chartTheme';
 
@@ -34,7 +35,7 @@ function CompletedByTimeOfDay({ allData, loading }: CompletedByTimeOfDayProps) {
 
   // Count tasks completed in each hour
   allData.allCompletedTasks.forEach(task => {
-    const completedDate = new Date(task.completed_at);
+    const completedDate = new Date(getEffectiveCompletedAt(task));
     const hour = completedDate.getHours();
     hourMap.set(hour, (hourMap.get(hour) || 0) + 1);
   });

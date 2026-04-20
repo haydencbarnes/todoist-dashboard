@@ -1,13 +1,36 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { CACHE_DURATION, STALE_DURATION, MAX_TASKS } from '../utils/constants';
-import { DashboardData } from '../types';
+import { CompletedTask, DashboardData } from '../types';
+import {
+  applyOriginalCompletionDates,
+  toCompletionHistoryTaskRef,
+  type CompletionHistoryTaskRef,
+} from '@/utils/completionHistory';
+
+interface OriginalCompletionsResponse {
+  originalCompletions?: CompletionHistoryTaskRef[];
+}
 
 // Helper: Validate data shape
 function isValidDashboardData(data: unknown): data is DashboardData {
   if (!data || typeof data !== 'object') return false;
   const d = data as DashboardData;
+
+  const completedTasksHaveAddedAt = Array.isArray(d.allCompletedTasks) && d.allCompletedTasks.every(task => {
+    if (!task || typeof task !== 'object') return false;
+    const completedTask = task as {
+      added_at?: unknown;
+      effective_completed_at?: unknown;
+    };
+    return (
+      typeof completedTask.added_at === 'string' &&
+      typeof completedTask.effective_completed_at === 'string'
+    );
+  });
+
   return (
     Array.isArray(d.allCompletedTasks) &&
+    completedTasksHaveAddedAt &&
     Array.isArray(d.projectData) &&
     typeof d.totalCompletedTasks === 'number' &&
     typeof d.hasMoreTasks === 'boolean'
@@ -58,19 +81,109 @@ export function useDashboardData() {
   const abortControllerRef = useRef<AbortController | null>(null);
   const isMountedRef = useRef(true);
 
+  const normalizeCompletedTasks = useCallback(async (
+    tasks: CompletedTask[]
+  ): Promise<CompletedTask[]> => {
+    if (tasks.length === 0) {
+      return tasks;
+    }
+
+    const response = await fetch('/api/getOriginalCompletionDates', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        tasks: tasks.map(toCompletionHistoryTaskRef),
+      }),
+      signal: abortControllerRef.current?.signal || null,
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to normalize completed tasks: ${response.status} ${response.statusText}`);
+    }
+
+    const result: OriginalCompletionsResponse = await response.json();
+    const originalCompletions = Array.isArray(result.originalCompletions)
+      ? result.originalCompletions
+      : [];
+
+    return applyOriginalCompletionDates(tasks, originalCompletions);
+  }, []);
+
+  const withNormalizedCompletedTasks = useCallback(async (
+    data: DashboardData
+  ): Promise<DashboardData> => {
+    try {
+      return {
+        ...data,
+        allCompletedTasks: await normalizeCompletedTasks(data.allCompletedTasks),
+      };
+    } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') {
+        throw err;
+      }
+
+      console.error('Error normalizing completed tasks:', err);
+      return {
+        ...data,
+        loadError: {
+          message: err instanceof Error ? err.message : 'Failed to normalize completion history',
+          type: 'partial',
+          timestamp: Date.now(),
+        },
+      };
+    }
+  }, [normalizeCompletedTasks]);
+
   // Load More Tasks function
   const loadMoreTasks = useCallback(async (currentData: DashboardData): Promise<DashboardData> => {
     let updatedData = { ...currentData };
+    let loadedTaskCount = currentData.allCompletedTasks.length;
+    let pendingNewTasks: CompletedTask[] = [];
     let retryCount = 0;
     const MAX_RETRIES = 3;
     let lastError: Error | null = null;
+
+    const flushPendingTasks = async (markPartialError?: Error | null) => {
+      if (pendingNewTasks.length === 0) {
+        return;
+      }
+
+      let tasksToAppend = pendingNewTasks;
+      try {
+        tasksToAppend = await normalizeCompletedTasks(pendingNewTasks);
+      } catch (err) {
+        if (err instanceof DOMException && err.name === 'AbortError') {
+          throw err;
+        }
+
+        console.error('Error normalizing newly loaded tasks:', err);
+        updatedData.loadError = {
+          message: err instanceof Error ? err.message : 'Failed to normalize completion history',
+          type: 'partial',
+          timestamp: Date.now(),
+        };
+      }
+
+      updatedData.allCompletedTasks = [...updatedData.allCompletedTasks, ...tasksToAppend];
+      pendingNewTasks = [];
+
+      if (markPartialError) {
+        updatedData.loadError = {
+          message: markPartialError.message,
+          type: 'partial',
+          timestamp: Date.now(),
+        };
+      }
+    };
 
     while (updatedData.hasMoreTasks && updatedData.allCompletedTasks.length < MAX_TASKS) {
       if (!isMountedRef.current) break;
 
       try {
         const response = await fetch(
-          `/api/getTasks?loadMore=true&offset=${updatedData.allCompletedTasks.length}&total=${updatedData.totalCompletedTasks}`,
+          `/api/getTasks?loadMore=true&offset=${loadedTaskCount}&total=${updatedData.totalCompletedTasks}`,
           { signal: abortControllerRef.current?.signal || null }
         );
 
@@ -89,14 +202,14 @@ export function useDashboardData() {
           break;
         }
 
-        updatedData.allCompletedTasks = [...updatedData.allCompletedTasks, ...result.newTasks];
-        updatedData.hasMoreTasks = result.hasMoreTasks && updatedData.allCompletedTasks.length < MAX_TASKS;
+        pendingNewTasks = [...pendingNewTasks, ...(result.newTasks as CompletedTask[])];
+        loadedTaskCount += result.newTasks.length;
+        updatedData.hasMoreTasks = result.hasMoreTasks && loadedTaskCount < MAX_TASKS;
 
         // Update UI state
         if (isMountedRef.current) {
-          setData(updatedData);
           setLoadingProgress({
-            loaded: Math.min(result.loadedTasks, MAX_TASKS),
+            loaded: Math.min(loadedTaskCount, MAX_TASKS),
             total: Math.min(result.totalTasks, MAX_TASKS),
           });
         }
@@ -113,6 +226,7 @@ export function useDashboardData() {
       } catch (err: unknown) {
         if (err instanceof DOMException && err.name === 'AbortError') {
           // Fetch aborted, just return what we have
+          await flushPendingTasks();
           return updatedData;
         }
 
@@ -122,11 +236,7 @@ export function useDashboardData() {
         if (retryCount >= MAX_RETRIES) {
           console.error('Max retries reached while loading tasks:', err);
           // Store the error but continue with partial data
-          updatedData.loadError = {
-            message: lastError.message,
-            type: 'partial',
-            timestamp: Date.now()
-          };
+          await flushPendingTasks(lastError);
           updatedData.hasMoreTasks = false;
           break;
         }
@@ -141,8 +251,10 @@ export function useDashboardData() {
       updatedData.hasMoreTasks = false;
     }
 
+    await flushPendingTasks();
+
     return updatedData;
-  }, []);
+  }, [normalizeCompletedTasks]);
 
   const fetchFreshData = useCallback(async (): Promise<DashboardData> => {
     abortControllerRef.current = new AbortController();
@@ -219,7 +331,7 @@ export function useDashboardData() {
       
       if (!isMountedRef.current) return;
 
-      let finalData = initialData;
+      let finalData = await withNormalizedCompletedTasks(initialData);
       setData(finalData);
       setLoadingProgress({
         loaded: Math.min(finalData.allCompletedTasks.length, MAX_TASKS),
@@ -228,7 +340,7 @@ export function useDashboardData() {
 
       if (initialData.hasMoreTasks && isMountedRef.current) {
         try {
-          finalData = await loadMoreTasks(initialData);
+          finalData = await loadMoreTasks(finalData);
           if (isMountedRef.current) {
             setData(finalData);
             setLoadingProgress(prev => prev ? {
@@ -240,7 +352,7 @@ export function useDashboardData() {
           // If we fail loading more tasks, keep the initial data
           console.error('Error loading more tasks:', err);
           finalData = {
-            ...initialData,
+            ...finalData,
             loadError: {
               message: err instanceof Error ? err.message : 'Failed to load all tasks',
               type: 'partial',
@@ -285,7 +397,7 @@ export function useDashboardData() {
         setIsLoadingFromCache(false);
       }
     }
-  }, [fetchFreshData, loadMoreTasks]);
+  }, [fetchFreshData, loadMoreTasks, withNormalizedCompletedTasks]);
 
   const refreshData = useCallback(() => {
     if (abortControllerRef.current) {

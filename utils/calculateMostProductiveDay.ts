@@ -1,4 +1,5 @@
 import { CompletedTask } from '../types';
+import { getEffectiveCompletedAt } from '@/utils/completionHistory';
 
 interface MostProductiveDay {
   date: string;
@@ -15,7 +16,7 @@ export function calculateMostProductiveDay(allCompletedTasks: CompletedTask[] | 
   // Group tasks by date
   if (allCompletedTasks) {
     allCompletedTasks.forEach((task) => {
-      const completedDate = new Date(task.completed_at);
+      const completedDate = new Date(getEffectiveCompletedAt(task));
 
       // Format the date as "Month Day, Year" (e.g., "May 1, 2023")
       const formattedDate = completedDate.toLocaleString("en-US", {

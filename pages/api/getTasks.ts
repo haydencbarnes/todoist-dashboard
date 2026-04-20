@@ -71,22 +71,66 @@ function getNumberValue(source: ApiTaskRecord, ...keys: string[]): number {
   return 0;
 }
 
-function isTodoistTaskDuration(value: unknown): value is TodoistTaskDuration {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) {
-    return false;
+function parsePositiveNumber(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isFinite(value) && value > 0) {
+    return value;
   }
 
-  const duration = value as { amount?: unknown; unit?: unknown };
-  return (
-    typeof duration.amount === 'number' &&
-    Number.isFinite(duration.amount) &&
-    duration.amount > 0 &&
-    (duration.unit === 'minute' || duration.unit === 'day')
-  );
+  if (typeof value === 'string') {
+    const parsed = Number(value.trim());
+    if (Number.isFinite(parsed) && parsed > 0) {
+      return parsed;
+    }
+  }
+
+  return null;
 }
 
-function normalizeTaskDuration(value: unknown): TodoistTaskDuration | null {
-  return isTodoistTaskDuration(value) ? value : null;
+function normalizeDurationUnit(value: unknown): 'minute' | 'day' | null {
+  if (typeof value !== 'string') {
+    return null;
+  }
+
+  const normalized = value.trim().toLowerCase();
+  if (normalized === 'minute' || normalized === 'minutes') {
+    return 'minute';
+  }
+  if (normalized === 'day' || normalized === 'days') {
+    return 'day';
+  }
+
+  return null;
+}
+
+function normalizeTaskDuration(value: unknown, unitHint?: unknown): TodoistTaskDuration | null {
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    const duration = value as { amount?: unknown; unit?: unknown };
+    const amount = parsePositiveNumber(duration.amount);
+    const unit = normalizeDurationUnit(duration.unit);
+
+    if (amount && unit) {
+      return { amount, unit };
+    }
+  }
+
+  const amount = parsePositiveNumber(value);
+  const unit = normalizeDurationUnit(unitHint);
+  if (amount && unit) {
+    return { amount, unit };
+  }
+
+  return null;
+}
+
+function extractDurationFromContainer(container: Record<string, unknown> | null): TodoistTaskDuration | null {
+  if (!container) {
+    return null;
+  }
+
+  return normalizeTaskDuration(
+    container.duration,
+    container.duration_unit ?? container.durationUnit
+  );
 }
 
 function extractTaskDuration(
@@ -94,31 +138,20 @@ function extractTaskDuration(
   itemObject: Record<string, unknown> | null,
   metaData: Record<string, unknown> | null
 ): TodoistTaskDuration | null {
-  const candidates: unknown[] = [source.duration];
-  const containers = [itemObject, metaData];
+  const containers: Array<Record<string, unknown> | null> = [source, itemObject, metaData];
 
-  for (const container of containers) {
+  for (const container of [itemObject, metaData]) {
     if (!container) continue;
 
-    candidates.push(container.duration);
-
-    const nestedTask = asObjectOrNull(container.task);
-    const nestedItem = asObjectOrNull(container.item);
-    const nestedObject = asObjectOrNull(container.item_object) ?? asObjectOrNull(container.itemObject);
-
-    if (nestedTask) {
-      candidates.push(nestedTask.duration);
-    }
-    if (nestedItem) {
-      candidates.push(nestedItem.duration);
-    }
-    if (nestedObject) {
-      candidates.push(nestedObject.duration);
-    }
+    containers.push(
+      asObjectOrNull(container.task),
+      asObjectOrNull(container.item),
+      asObjectOrNull(container.item_object) ?? asObjectOrNull(container.itemObject)
+    );
   }
 
-  for (const candidate of candidates) {
-    const duration = normalizeTaskDuration(candidate);
+  for (const container of containers) {
+    const duration = extractDurationFromContainer(container);
     if (duration) {
       return duration;
     }
@@ -234,14 +267,17 @@ async function fetchCompletedTasksBatch(
     const metaData = asObjectOrNull(task.meta_data) ?? asObjectOrNull(task.metaData);
 
     return {
+      added_at: getStringValue(task, 'added_at', 'addedAt'),
       completed_at: getStringValue(task, 'completed_at', 'completedAt'),
       content: getStringValue(task, 'content'),
       duration: extractTaskDuration(task, itemObject, metaData),
+      effective_completed_at: getStringValue(task, 'completed_at', 'completedAt'),
       id: getStringValue(task, 'id'),
       item_object: itemObject,
       meta_data: metaData,
       note_count: getNumberValue(task, 'note_count', 'noteCount'),
       notes: Array.isArray(task.notes) ? task.notes : [],
+      original_completed_at: null,
       project_id: getStringValue(task, 'project_id', 'projectId'),
       section_id: getStringValue(task, 'section_id', 'sectionId'),
       task_id: getStringValue(task, 'task_id', 'taskId', 'id'),

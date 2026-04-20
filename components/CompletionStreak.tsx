@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { format, parseISO, differenceInDays } from 'date-fns';
 import { AiFillFire } from 'react-icons/ai';
 import { BsStars } from 'react-icons/bs';
+import { getEffectiveCompletedAt } from '@/utils/completionHistory';
 
 interface CompletedTask {
   completed_at: string;
@@ -32,12 +33,12 @@ export default function CompletionStreak({ allData }: CompletionStreakProps) {
   const streakInfo = useMemo<StreakInfo>(() => {
     // Sort tasks by completion date
     const sortedTasks = [...allCompletedTasks].sort((a, b) =>
-      new Date(b.completed_at).getTime() - new Date(a.completed_at).getTime()
+      new Date(getEffectiveCompletedAt(b)).getTime() - new Date(getEffectiveCompletedAt(a)).getTime()
     );
 
     // Group tasks by date
     const tasksByDate = sortedTasks.reduce<TasksByDate>((acc, task) => {
-      const date = format(parseISO(task.completed_at), 'yyyy-MM-dd');
+      const date = format(parseISO(getEffectiveCompletedAt(task)), 'yyyy-MM-dd');
       if (!acc[date]) {
         acc[date] = [];
       }

@@ -3,6 +3,7 @@ import {
   startOfDay, endOfDay, subDays, 
   subWeeks, subMonths
 } from 'date-fns';
+import { getEffectiveCompletedAt } from '@/utils/completionHistory';
 
 interface CompletionRates {
   dailyCompletionRate: number;
@@ -25,18 +26,18 @@ export function calculateCompletionRates(tasks: CompletedTask[]): CompletionRate
 
   // Calculate current period tasks
   const last24Hours = tasks.filter(task => {
-    const date = new Date(task.completed_at);
+    const date = new Date(getEffectiveCompletedAt(task));
     return date >= startOfDay(today) && date <= endOfDay(today);
   }).length;
 
   const last7Days = tasks.filter(task => {
-    const date = new Date(task.completed_at);
+    const date = new Date(getEffectiveCompletedAt(task));
     const sevenDaysAgo = subDays(today, 6);
     return date >= startOfDay(sevenDaysAgo) && date <= endOfDay(today);
   }).length;
 
   const last30Days = tasks.filter(task => {
-    const date = new Date(task.completed_at);
+    const date = new Date(getEffectiveCompletedAt(task));
     const thirtyDaysAgo = subDays(today, 29);
     return date >= startOfDay(thirtyDaysAgo) && date <= endOfDay(today);
   }).length;
@@ -48,14 +49,14 @@ export function calculateCompletionRates(tasks: CompletedTask[]): CompletionRate
 
   // Daily average (last 4 weeks, excluding today)
   const dailyHistoricalTasks = tasks.filter(task => {
-    const date = new Date(task.completed_at);
+    const date = new Date(getEffectiveCompletedAt(task));
     return date >= startOfDay(fourWeeksAgo) && date < startOfDay(today);
   });
   const dailyAverage = Math.round(dailyHistoricalTasks.length / 28);
 
   // Weekly average (last 12 weeks, excluding current week)
   const weeklyHistoricalTasks = tasks.filter(task => {
-    const date = new Date(task.completed_at);
+    const date = new Date(getEffectiveCompletedAt(task));
     const sevenDaysAgo = subDays(today, 6);
     return date >= startOfDay(twelveWeeksAgo) && date < startOfDay(sevenDaysAgo);
   });
@@ -63,7 +64,7 @@ export function calculateCompletionRates(tasks: CompletedTask[]): CompletionRate
 
   // Monthly average (last 12 months, excluding current month)
   const monthlyHistoricalTasks = tasks.filter(task => {
-    const date = new Date(task.completed_at);
+    const date = new Date(getEffectiveCompletedAt(task));
     const thirtyDaysAgo = subDays(today, 29);
     return date >= startOfDay(twelveMonthsAgo) && date < startOfDay(thirtyDaysAgo);
   });
@@ -77,11 +78,11 @@ export function calculateCompletionRates(tasks: CompletedTask[]): CompletionRate
   // Group tasks by week for the chart (keep this part unchanged)
   const weeklyTasks = tasks
     .filter(task => {
-      const date = new Date(task.completed_at);
+      const date = new Date(getEffectiveCompletedAt(task));
       return date >= new Date(today.getTime() - 90 * 24 * 60 * 60 * 1000);
     })
     .reduce((acc: { date: string; count: number }[], task) => {
-      const date = new Date(task.completed_at);
+      const date = new Date(getEffectiveCompletedAt(task));
       const weekStart = new Date(date);
       weekStart.setDate(date.getDate() - date.getDay());
       const weekKey = weekStart.toISOString().split('T')[0] ?? '';

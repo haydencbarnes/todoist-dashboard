@@ -1,4 +1,5 @@
 import { CompletedTask } from '../types';
+import { getEffectiveCompletedAt } from '@/utils/completionHistory';
 
 interface CreatedTasks {
   weeklyTasks: number[];
@@ -23,7 +24,7 @@ export function calculateCreatedTasks(tasks: CompletedTask[] | null): CreatedTas
   tasks.forEach(task => {
     if (!task.completed_at) return;
 
-    const completedDate = new Date(task.completed_at);
+    const completedDate = new Date(getEffectiveCompletedAt(task));
     
     // Only count tasks completed in the last 7 days
     if (completedDate >= sevenDaysAgo && completedDate <= now) {

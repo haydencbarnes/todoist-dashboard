@@ -1,4 +1,5 @@
 import { CompletedTask } from '../types';
+import { getEffectiveCompletedAt } from '@/utils/completionHistory';
 
 interface TaskCountsByHour {
   [hour: string]: number;
@@ -17,7 +18,7 @@ export function calculateMostProductiveTimeOfDay(allCompletedTasks: CompletedTas
 
   // Count tasks by hour
   allCompletedTasks.forEach((task) => {
-    const completedDate = new Date(task.completed_at);
+    const completedDate = new Date(getEffectiveCompletedAt(task));
     const hour = completedDate.getHours();
     taskCountsByHour[hour] = (taskCountsByHour[hour] || 0) + 1;
   });

@@ -1,4 +1,5 @@
 import type { CompletedTask, DateRange } from '@/types';
+import { getEffectiveCompletedAt } from '@/utils/completionHistory';
 
 /**
  * Filters completed tasks by a date range
@@ -9,7 +10,7 @@ import type { CompletedTask, DateRange } from '@/types';
  *
  * Notes:
  * - If both start and end are null, returns all tasks (no filtering)
- * - Filters based on the completed_at field
+ * - Filters based on the effective completion date
  * - Validates date logic (prevents invalid ranges)
  */
 export function filterCompletedTasksByDateRange(
@@ -22,7 +23,7 @@ export function filterCompletedTasksByDateRange(
   }
 
   return tasks.filter(task => {
-    const completedDate = new Date(task.completed_at);
+    const completedDate = new Date(getEffectiveCompletedAt(task));
 
     // Check if the date is valid
     if (isNaN(completedDate.getTime())) {

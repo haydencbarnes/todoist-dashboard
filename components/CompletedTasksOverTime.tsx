@@ -17,6 +17,7 @@ import {
 } from 'date-fns';
 import { HiArrowsRightLeft } from 'react-icons/hi2';
 import { trackChartInteraction } from '@/utils/analytics';
+import { getEffectiveCompletedAt } from '@/utils/completionHistory';
 import {
   WARM_PEACH,
   WARM_SAGE,
@@ -127,7 +128,7 @@ function CompletedTasksOverTime({ allData, loading, comparisonData }: CompletedT
           const dayEnd = endOfDay(day);
           const tasksThisDay = allData.filter(task => {
             if (!task.completed_at) return false;
-            const completedDate = new Date(task.completed_at);
+            const completedDate = new Date(getEffectiveCompletedAt(task));
             return isWithinInterval(completedDate, { start: dayStart, end: dayEnd });
           }).length;
           
@@ -146,7 +147,7 @@ function CompletedTasksOverTime({ allData, loading, comparisonData }: CompletedT
           const weekEnd = endOfWeek(weekStart);
           const tasksThisWeek = allData.filter(task => {
             if (!task.completed_at) return false;
-            const completedDate = new Date(task.completed_at);
+            const completedDate = new Date(getEffectiveCompletedAt(task));
             return isWithinInterval(completedDate, { start: weekStart, end: weekEnd });
           }).length;
           
@@ -165,7 +166,7 @@ function CompletedTasksOverTime({ allData, loading, comparisonData }: CompletedT
           const monthEnd = endOfMonth(monthStart);
           const tasksThisMonth = allData.filter(task => {
             if (!task.completed_at) return false;
-            const completedDate = new Date(task.completed_at);
+            const completedDate = new Date(getEffectiveCompletedAt(task));
             return isWithinInterval(completedDate, { start: monthStart, end: monthEnd });
           }).length;
           
@@ -196,7 +197,7 @@ function CompletedTasksOverTime({ allData, loading, comparisonData }: CompletedT
           const dayEnd = endOfDay(day);
           return comparisonData.filter(task => {
             if (!task.completed_at) return false;
-            const completedDate = new Date(task.completed_at);
+            const completedDate = new Date(getEffectiveCompletedAt(task));
             return isWithinInterval(completedDate, { start: dayStart, end: dayEnd });
           }).length;
         });
@@ -207,7 +208,7 @@ function CompletedTasksOverTime({ allData, loading, comparisonData }: CompletedT
           const weekEnd = endOfWeek(weekStart);
           return comparisonData.filter(task => {
             if (!task.completed_at) return false;
-            const completedDate = new Date(task.completed_at);
+            const completedDate = new Date(getEffectiveCompletedAt(task));
             return isWithinInterval(completedDate, { start: weekStart, end: weekEnd });
           }).length;
         });
@@ -218,7 +219,7 @@ function CompletedTasksOverTime({ allData, loading, comparisonData }: CompletedT
           const monthEnd = endOfMonth(monthStart);
           return comparisonData.filter(task => {
             if (!task.completed_at) return false;
-            const completedDate = new Date(task.completed_at);
+            const completedDate = new Date(getEffectiveCompletedAt(task));
             return isWithinInterval(completedDate, { start: monthStart, end: monthEnd });
           }).length;
         });

@@ -5,6 +5,7 @@ import Tasks from "./Tasks";
 import { DashboardData, CompletedTask } from "../../types";
 import { parseISO, isToday, subDays } from "date-fns";
 import { trackTaskList } from "@/utils/analytics";
+import { getEffectiveCompletedAt } from "@/utils/completionHistory";
 
 interface TaskWithProject {
   task: CompletedTask;
@@ -35,7 +36,7 @@ export default function RecentlyCompletedList({ allData }: RecentlyCompletedList
         // Skip tasks without a valid completed_at date
         if (typeof task.completed_at !== 'string') return;
 
-        const completedDate = parseISO(task.completed_at);
+        const completedDate = parseISO(getEffectiveCompletedAt(task));
         const projectId = task.project_id;
 
         // Today's tasks - using isToday which handles timezone correctly

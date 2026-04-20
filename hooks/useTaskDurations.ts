@@ -4,18 +4,24 @@ import { subDays } from 'date-fns';
 
 export interface DurationTask {
   id: string;
+  addedAt: string;
   content: string;
   projectId: string;
   completedAt: string;
+  taskId: string;
+  v2TaskId: string;
   duration: TodoistTaskDuration;
   labels: string[];
 }
 
 export interface NoDurationTask {
   id: string;
+  addedAt: string;
   content: string;
   projectId: string;
   completedAt: string;
+  taskId: string;
+  v2TaskId: string;
   labels: string[];
 }
 
@@ -50,7 +56,8 @@ function getDateWindows(start: Date, end: Date): Array<{ since: string; until: s
 
 export function useTaskDurations(
   dateRange: DateRange,
-  selectedProjectIds: string[]
+  selectedProjectIds: string[],
+  enabled = true
 ): UseTaskDurationsResult {
   const [tasks, setTasks] = useState<DurationTask[]>([]);
   const [noDurationTasks, setNoDurationTasks] = useState<NoDurationTask[]>([]);
@@ -63,6 +70,14 @@ export function useTaskDurations(
   const projectKey = selectedProjectIds.join(',');
 
   useEffect(() => {
+    if (!enabled) {
+      setTasks([]);
+      setNoDurationTasks([]);
+      setIsLoading(false);
+      setError(null);
+      return;
+    }
+
     const controller = new AbortController();
     const { signal } = controller;
 
@@ -85,6 +100,9 @@ export function useTaskDurations(
             since: window.since,
             until: window.until,
           });
+          if (process.env.NODE_ENV === 'development') {
+            params.set('debugDuration', '1');
+          }
 
           const resp = await fetch(
             `/api/getCompletedWithDuration?${params}`,
@@ -103,9 +121,12 @@ export function useTaskDurations(
             for (const task of data.tasks) {
               allTasks.push({
                 id: task.id,
+                addedAt: task.added_at ?? '',
                 content: task.content,
                 projectId: task.project_id,
                 completedAt: task.completed_at,
+                taskId: task.task_id ?? task.id,
+                v2TaskId: task.v2_task_id ?? task.task_id ?? task.id,
                 duration: task.duration,
                 labels: task.labels ?? [],
               });
@@ -115,9 +136,12 @@ export function useTaskDurations(
             for (const task of data.noDurationTasks) {
               allNoDuration.push({
                 id: task.id,
+                addedAt: task.added_at ?? '',
                 content: task.content,
                 projectId: task.project_id,
                 completedAt: task.completed_at,
+                taskId: task.task_id ?? task.id,
+                v2TaskId: task.v2_task_id ?? task.task_id ?? task.id,
                 labels: task.labels ?? [],
               });
             }
@@ -148,7 +172,7 @@ export function useTaskDurations(
 
     fetchDurations();
     return () => controller.abort();
-  }, [startIso, endIso, preset, projectKey]);
+  }, [enabled, startIso, endIso, preset, projectKey]);
 
   return { tasks, noDurationTasks, isLoading, error };
 }

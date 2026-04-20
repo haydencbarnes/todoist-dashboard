@@ -1,14 +1,16 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import type { CompletedTask, DateRange, Label } from '@/types';
+import type { CompletedTask, DateRange, Label, TodoistTaskDuration } from '@/types';
 import { useTaskDurations } from '@/hooks/useTaskDurations';
-import { stripLabelsFromContent } from '@/utils/parseLabelsFromContent';
+import { parseLabelsFromContent, stripLabelsFromContent } from '@/utils/parseLabelsFromContent';
+import { getCompletionHistoryKey } from '@/utils/completionHistory';
 import Spinner from './shared/Spinner';
 
 interface TaskDurationTableProps {
   completedTasks: CompletedTask[];
+  loadingFullData?: boolean;
+  selectedProjectIds: string[];
   dateRange: DateRange;
   labels: Label[];
-  selectedProjectIds: string[];
 }
 
 interface LabelRow {
@@ -17,62 +19,592 @@ interface LabelRow {
   totalMinutes: number;
 }
 
+interface DurationCandidate {
+  id: string;
+  taskKey: string;
+  historyKey: string;
+  content: string;
+  normalizedContent: string;
+  projectId: string;
+  addedAt: string;
+  completedAt: string;
+  localDate: string;
+  duration: TodoistTaskDuration;
+  labels: string[];
+}
+
+interface MergedTask {
+  id: string;
+  taskId: string;
+  v2TaskId: string;
+  completedAt: string;
+  content: string;
+  duration: TodoistTaskDuration | null;
+  labels: string[];
+}
+
 const NO_LABEL = 'No label';
 const MINUTES_PER_DAY = 480;
+const REOPEN_DURATION_LOOKAHEAD_DAYS = 30;
 
 function toMinutes(amount: number, unit: string): number {
   return unit === 'day' ? amount * MINUTES_PER_DAY : amount;
-}
-
-function getDayKey(value: string): string {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
 }
 
 function formatMinutesWithHours(minutes: number): string {
   return `${minutes.toLocaleString()} (${(minutes / 60).toFixed(1)}hr)`;
 }
 
+function getParsedTaskLabels(content: string, labels: Label[]): string[] {
+  const parsedLabels = parseLabelsFromContent(content, labels);
+  return parsedLabels.length > 0 ? parsedLabels : [NO_LABEL];
+}
+
 function normalizeContent(content: string, labels: Label[]): string {
-  const stripped = stripLabelsFromContent(content, labels);
-  return stripped
-    .replace(/(^|\s)@[^\s]+/g, ' ')
+  return stripLabelsFromContent(content, labels)
     .replace(/\s+/g, ' ')
     .trim()
     .toLowerCase();
 }
 
-function buildComparisonKey(content: string, completedAt: string, labels: Label[]): string {
-  return `${normalizeContent(content, labels)}|${getDayKey(completedAt)}`;
+function toLocalDateString(dateStr: string): string {
+  const date = new Date(dateStr);
+  if (Number.isNaN(date.getTime())) {
+    return '';
+  }
+
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }
 
-function TaskDurationTable({ completedTasks, dateRange, labels: labelsProp, selectedProjectIds }: TaskDurationTableProps) {
-  const { tasks, isLoading, error } = useTaskDurations(dateRange, selectedProjectIds);
+function isWithinDateRange(value: string, dateRange: DateRange): boolean {
+  if (!dateRange.start && !dateRange.end) {
+    return true;
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return false;
+  }
+  if (dateRange.start && date < dateRange.start) {
+    return false;
+  }
+  if (dateRange.end && date > dateRange.end) {
+    return false;
+  }
+
+  return true;
+}
+
+function getTaskKey(taskId: string, v2TaskId: string): string {
+  return v2TaskId || taskId;
+}
+
+function getTaskHistoryKey(task: {
+  id: string;
+  taskId?: string;
+  task_id?: string;
+  v2TaskId?: string;
+  v2_task_id?: string;
+}): string {
+  const identity: {
+    id: string;
+    taskId?: string;
+    v2TaskId?: string;
+  } = {
+    id: task.id,
+  };
+
+  const taskId = task.taskId ?? task.task_id;
+  const v2TaskId = task.v2TaskId ?? task.v2_task_id;
+  if (taskId) {
+    identity.taskId = taskId;
+  }
+  if (v2TaskId) {
+    identity.v2TaskId = v2TaskId;
+  }
+
+  return getCompletionHistoryKey(identity);
+}
+
+function getLocalTaskKey(task: {
+  taskId?: string;
+  task_id?: string;
+  v2TaskId?: string;
+  v2_task_id?: string;
+  completedAt?: string;
+  completed_at?: string;
+}): string {
+  return [
+    toLocalDateString(task.completedAt ?? task.completed_at ?? ''),
+    getTaskKey(
+      task.taskId ?? task.task_id ?? '',
+      task.v2TaskId ?? task.v2_task_id ?? ''
+    ),
+  ].join('|');
+}
+
+function getLocalContentAddedKey(task: {
+  content: string;
+  projectId?: string;
+  project_id?: string;
+  addedAt?: string;
+  added_at?: string;
+  completedAt?: string;
+  completed_at?: string;
+}, labels: Label[]): string {
+  return [
+    toLocalDateString(task.completedAt ?? task.completed_at ?? ''),
+    task.projectId ?? task.project_id ?? '',
+    task.addedAt ?? task.added_at ?? '',
+    normalizeContent(task.content, labels),
+  ].join('|');
+}
+
+function getContentAddedKey(task: {
+  content: string;
+  projectId?: string;
+  project_id?: string;
+  addedAt?: string;
+  added_at?: string;
+}, labels: Label[]): string {
+  return [
+    task.projectId ?? task.project_id ?? '',
+    task.addedAt ?? task.added_at ?? '',
+    normalizeContent(task.content, labels),
+  ].join('|');
+}
+
+function getLocalContentProjectKey(task: {
+  content: string;
+  projectId?: string;
+  project_id?: string;
+  completedAt?: string;
+  completed_at?: string;
+}, labels: Label[]): string {
+  return [
+    toLocalDateString(task.completedAt ?? task.completed_at ?? ''),
+    task.projectId ?? task.project_id ?? '',
+    normalizeContent(task.content, labels),
+  ].join('|');
+}
+
+function getContentProjectKey(task: {
+  content: string;
+  projectId?: string;
+  project_id?: string;
+}, labels: Label[]): string {
+  return [
+    task.projectId ?? task.project_id ?? '',
+    normalizeContent(task.content, labels),
+  ].join('|');
+}
+
+function getMergeDedupKeys(task: {
+  taskId?: string;
+  task_id?: string;
+  v2TaskId?: string;
+  v2_task_id?: string;
+  content: string;
+  projectId?: string;
+  project_id?: string;
+  addedAt?: string;
+  added_at?: string;
+  completedAt?: string;
+  completed_at?: string;
+}, labels: Label[]): string[] {
+  return [
+    getLocalTaskKey(task),
+    getLocalContentAddedKey(task, labels),
+    getLocalContentProjectKey(task, labels),
+  ].filter(Boolean);
+}
+
+function getLocalContentKey(task: {
+  content: string;
+  completedAt?: string;
+  completed_at?: string;
+}, labels: Label[]): string {
+  return [
+    toLocalDateString(task.completedAt ?? task.completed_at ?? ''),
+    normalizeContent(task.content, labels),
+  ].join('|');
+}
+
+function TaskDurationTable({
+  completedTasks,
+  loadingFullData = false,
+  selectedProjectIds,
+  dateRange,
+  labels: labelsProp,
+}: TaskDurationTableProps) {
+  const {
+    tasks: selectedDurationTasks,
+    noDurationTasks: selectedNoDurationTasks,
+    isLoading: isSelectedDurationLoading,
+    error: selectedDurationError,
+  } = useTaskDurations(dateRange, selectedProjectIds);
+
   const [showTasksWithoutDuration, setShowTasksWithoutDuration] = useState(false);
 
+  const sameDayCompletedTasks = useMemo(() => {
+    return completedTasks.filter((task) => isWithinDateRange(task.completed_at, dateRange));
+  }, [completedTasks, dateRange]);
+
+  // Task identities present on the selected day (from both API sources + same-day completed tasks).
+  // Used to scope reopened-task discovery so we only look at tasks related to this day.
+  const todayTaskIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const t of selectedDurationTasks) {
+      ids.add(getTaskKey(t.taskId, t.v2TaskId));
+    }
+    for (const t of selectedNoDurationTasks) {
+      ids.add(getTaskKey(t.taskId, t.v2TaskId));
+    }
+    for (const t of sameDayCompletedTasks) {
+      ids.add(getTaskKey(t.task_id, t.v2_task_id));
+    }
+    return ids;
+  }, [selectedDurationTasks, selectedNoDurationTasks, sameDayCompletedTasks]);
+
+  // Reopened tasks: completed AFTER the selected range (re-completed on a later day
+  // to fix duration), whose task identity matches something on the selected day.
+  // Past completions of the same recurring task are not reopened — only future
+  // re-completions within the lookahead window qualify.
+  const reopenedCompletedTasksInRange = useMemo(() => {
+    if (dateRange.preset === 'all' || !dateRange.end) return [];
+    const lookaheadEnd = new Date(dateRange.end);
+    lookaheadEnd.setDate(lookaheadEnd.getDate() + REOPEN_DURATION_LOOKAHEAD_DAYS);
+    return completedTasks.filter((task) => {
+      if (isWithinDateRange(task.completed_at, dateRange)) return false;
+      if (!todayTaskIds.has(getTaskKey(task.task_id, task.v2_task_id))) return false;
+      const completedDate = new Date(task.completed_at);
+      // Only include tasks re-completed AFTER the range end, within the lookahead window
+      return dateRange.end !== null && completedDate > dateRange.end && completedDate <= lookaheadEnd;
+    });
+  }, [completedTasks, dateRange, todayTaskIds]);
+
+  const durationRange = useMemo<DateRange>(() => {
+    if (dateRange.preset === 'all') {
+      return dateRange;
+    }
+
+    const completionTimes = sameDayCompletedTasks
+      .map((task) => Date.parse(task.completed_at))
+      .filter((time) => Number.isFinite(time));
+
+    if (completionTimes.length === 0) {
+      return {
+        start: dateRange.start,
+        end: dateRange.end,
+        preset: 'custom',
+      };
+    }
+
+    const start = new Date(Math.min(...completionTimes));
+    const end = new Date(Math.max(...completionTimes));
+    end.setDate(end.getDate() + REOPEN_DURATION_LOOKAHEAD_DAYS);
+
+    return {
+      start,
+      end,
+      preset: 'custom',
+    };
+  }, [dateRange, sameDayCompletedTasks]);
+
+  const needsExpandedLookup = useMemo(() => {
+    if (dateRange.preset === 'all') {
+      return false;
+    }
+
+    return reopenedCompletedTasksInRange.length > 0 || sameDayCompletedTasks.some((task) => !task.duration);
+  }, [dateRange.preset, reopenedCompletedTasksInRange.length, sameDayCompletedTasks]);
+
+  const {
+    tasks: lookupDurationTasks,
+    isLoading: isLookupLoading,
+    error: lookupDurationError,
+  } = useTaskDurations(durationRange, selectedProjectIds, needsExpandedLookup);
+
+  const combinedDurationError = selectedDurationError ?? lookupDurationError;
+
   const { rows, taskCount, tasksWithoutDuration, totalCompletedCount, totalMinutes } = useMemo(() => {
+    const candidateSource = needsExpandedLookup
+      ? lookupDurationTasks
+      : selectedDurationTasks;
+
+    const durationCandidatesByHistoryKey = new Map<string, DurationCandidate[]>();
+    const durationCandidatesByLocalTaskKey = new Map<string, DurationCandidate[]>();
+    const durationCandidatesByLocalContentAddedKey = new Map<string, DurationCandidate[]>();
+    const durationCandidatesByLocalContentProjectKey = new Map<string, DurationCandidate[]>();
+    const durationCandidatesByLocalContentKey = new Map<string, DurationCandidate[]>();
+    const usedCandidateIds = new Set<string>();
+
+    const addCandidate = (map: Map<string, DurationCandidate[]>, key: string, candidate: DurationCandidate) => {
+      if (!key) {
+        return;
+      }
+
+      const existing = map.get(key) ?? [];
+      existing.push(candidate);
+      map.set(key, existing);
+    };
+
+    for (const durationTask of candidateSource) {
+      const candidate: DurationCandidate = {
+        id: durationTask.id,
+        taskKey: getTaskKey(durationTask.taskId, durationTask.v2TaskId),
+        historyKey: getTaskHistoryKey(durationTask),
+        content: durationTask.content,
+        normalizedContent: normalizeContent(durationTask.content, labelsProp),
+        projectId: durationTask.projectId,
+        addedAt: durationTask.addedAt,
+        completedAt: durationTask.completedAt,
+        localDate: toLocalDateString(durationTask.completedAt),
+        duration: durationTask.duration,
+        labels: durationTask.labels,
+      };
+
+      addCandidate(durationCandidatesByHistoryKey, candidate.historyKey, candidate);
+      addCandidate(durationCandidatesByLocalTaskKey, getLocalTaskKey(durationTask), candidate);
+      addCandidate(durationCandidatesByLocalContentAddedKey, getLocalContentAddedKey(durationTask, labelsProp), candidate);
+      addCandidate(durationCandidatesByLocalContentProjectKey, getLocalContentProjectKey(durationTask, labelsProp), candidate);
+      addCandidate(durationCandidatesByLocalContentKey, getLocalContentKey(durationTask, labelsProp), candidate);
+    }
+
+    const takeFromMap = (
+      map: Map<string, DurationCandidate[]>,
+      key: string
+    ): DurationCandidate | null => {
+      if (!key) {
+        return null;
+      }
+
+      const candidates = map.get(key);
+      if (!candidates) {
+        return null;
+      }
+
+      while (candidates.length > 0) {
+        const candidate = candidates.shift() ?? null;
+        if (!candidate) {
+          break;
+        }
+        if (usedCandidateIds.has(candidate.id)) {
+          continue;
+        }
+
+        usedCandidateIds.add(candidate.id);
+        if (candidates.length === 0) {
+          map.delete(key);
+        }
+        return candidate;
+      }
+
+      map.delete(key);
+      return null;
+    };
+
+    const takeCandidate = (task: {
+      id: string;
+      taskId?: string;
+      task_id?: string;
+      v2TaskId?: string;
+      v2_task_id?: string;
+      content: string;
+      projectId?: string;
+      project_id?: string;
+      addedAt?: string;
+      added_at?: string;
+      completedAt?: string;
+      completed_at?: string;
+    }): DurationCandidate | null => {
+      return (
+        takeFromMap(durationCandidatesByLocalTaskKey, getLocalTaskKey(task)) ??
+        takeFromMap(durationCandidatesByLocalContentAddedKey, getLocalContentAddedKey(task, labelsProp)) ??
+        takeFromMap(durationCandidatesByLocalContentProjectKey, getLocalContentProjectKey(task, labelsProp)) ??
+        takeFromMap(durationCandidatesByLocalContentKey, getLocalContentKey(task, labelsProp)) ??
+        takeFromMap(durationCandidatesByHistoryKey, getTaskHistoryKey(task)) ??
+        null
+      );
+    };
+
+    // Identity sets from reopened tasks (re-completed after the range)
+    const reopenedHistoryKeys = new Set(reopenedCompletedTasksInRange.map((task) => getTaskHistoryKey(task)));
+    const reopenedTaskKeys = new Set(reopenedCompletedTasksInRange.map((task) => getTaskKey(task.task_id, task.v2_task_id)));
+    const reopenedContentAddedKeys = new Set(
+      reopenedCompletedTasksInRange.map((task) => getContentAddedKey(task, labelsProp)).filter(Boolean)
+    );
+    const reopenedContentProjectKeys = new Set(
+      reopenedCompletedTasksInRange.map((task) => getContentProjectKey(task, labelsProp)).filter(Boolean)
+    );
+
+    // Also match against same-day tasks by content+project. This catches tasks
+    // that were un-completed from today and re-completed on a later day as a
+    // DIFFERENT task (different task_id) — e.g. a bugreporter task that was
+    // recreated with an updated duration. Task IDs may differ across APIs,
+    // so content+project matching is the reliable fallback.
+    const sameDayContentAddedKeys = new Set(
+      sameDayCompletedTasks.map((task) => getContentAddedKey(task, labelsProp)).filter(Boolean)
+    );
+    const sameDayContentProjectKeys = new Set(
+      sameDayCompletedTasks.map((task) => getContentProjectKey(task, labelsProp)).filter(Boolean)
+    );
+    for (const task of selectedDurationTasks) {
+      const k1 = getContentAddedKey(task, labelsProp);
+      const k2 = getContentProjectKey(task, labelsProp);
+      if (k1) sameDayContentAddedKeys.add(k1);
+      if (k2) sameDayContentProjectKeys.add(k2);
+    }
+    for (const task of selectedNoDurationTasks) {
+      const k1 = getContentAddedKey(task, labelsProp);
+      const k2 = getContentProjectKey(task, labelsProp);
+      if (k1) sameDayContentAddedKeys.add(k1);
+      if (k2) sameDayContentProjectKeys.add(k2);
+    }
+
+    const reopenedDurationTasks = lookupDurationTasks.filter((task) => {
+      if (isWithinDateRange(task.completedAt, dateRange)) {
+        return false;
+      }
+
+      return (
+        reopenedHistoryKeys.has(getTaskHistoryKey(task)) ||
+        reopenedTaskKeys.has(getTaskKey(task.taskId, task.v2TaskId)) ||
+        reopenedContentAddedKeys.has(getContentAddedKey(task, labelsProp)) ||
+        reopenedContentProjectKeys.has(getContentProjectKey(task, labelsProp)) ||
+        sameDayContentAddedKeys.has(getContentAddedKey(task, labelsProp)) ||
+        sameDayContentProjectKeys.has(getContentProjectKey(task, labelsProp))
+      );
+    });
+
+    const mergedTasks: MergedTask[] = [];
+    const seen = new Set<string>();
+
+    const hasMergedIdentity = (task: {
+      id: string;
+      taskId?: string;
+      task_id?: string;
+      v2TaskId?: string;
+      v2_task_id?: string;
+    }) => {
+      const taskHistoryKey = getTaskHistoryKey(task);
+      const taskKey = getTaskKey(task.taskId ?? task.task_id ?? '', task.v2TaskId ?? task.v2_task_id ?? '');
+
+      return mergedTasks.some((mergedTask) => {
+        return (
+          getTaskHistoryKey(mergedTask) === taskHistoryKey ||
+          getTaskKey(mergedTask.taskId, mergedTask.v2TaskId) === taskKey
+        );
+      });
+    };
+
+    const addMergedTask = (task: MergedTask, dedupKeysOverride?: string[]) => {
+      const dedupKeys = (dedupKeysOverride ?? getMergeDedupKeys(task, labelsProp)).filter(Boolean);
+      if (dedupKeys.some((key) => seen.has(key))) {
+        return;
+      }
+
+      for (const key of dedupKeys) {
+        seen.add(key);
+      }
+      mergedTasks.push(task);
+    };
+
+    for (const task of selectedDurationTasks) {
+      takeCandidate(task);
+
+      addMergedTask({
+        id: task.id,
+        taskId: task.taskId,
+        v2TaskId: task.v2TaskId,
+        completedAt: task.completedAt,
+        content: task.content,
+        duration: task.duration,
+        labels: task.labels.length > 0
+          ? task.labels
+          : getParsedTaskLabels(task.content, labelsProp),
+      });
+    }
+
+    for (const task of selectedNoDurationTasks) {
+      const matchedCandidate = takeCandidate(task);
+      addMergedTask({
+        id: task.id,
+        taskId: task.taskId,
+        v2TaskId: task.v2TaskId,
+        completedAt: task.completedAt,
+        content: task.content,
+        duration: matchedCandidate?.duration ?? null,
+        labels: matchedCandidate?.labels.length
+          ? matchedCandidate.labels
+          : task.labels.length > 0
+            ? task.labels
+            : getParsedTaskLabels(task.content, labelsProp),
+      });
+    }
+
+    for (const task of sameDayCompletedTasks) {
+      const dedupKeys = getMergeDedupKeys(task, labelsProp);
+      const identityAlreadyMerged = hasMergedIdentity(task);
+      if (dedupKeys.some((key) => seen.has(key)) && identityAlreadyMerged) {
+        continue;
+      }
+
+      const matchedCandidate = takeCandidate(task);
+      const mergedTask: MergedTask = {
+        id: task.id,
+        taskId: task.task_id,
+        v2TaskId: task.v2_task_id,
+        completedAt: task.completed_at,
+        content: matchedCandidate?.content ?? task.content,
+        duration: matchedCandidate?.duration ?? task.duration ?? null,
+        labels: matchedCandidate?.labels.length
+          ? matchedCandidate.labels
+          : getParsedTaskLabels(task.content, labelsProp),
+      };
+
+      addMergedTask(
+        mergedTask,
+        identityAlreadyMerged
+          ? undefined
+          : [getLocalTaskKey(task), getTaskHistoryKey(task)].filter(Boolean)
+      );
+    }
+
+    // Reopened tasks from completedTasks are NOT added directly — recurring tasks
+    // share the same task_id and would flood the list. Instead, we rely on
+    // reopenedDurationTasks (step 5) which only includes tasks from the expanded
+    // by_completion_date API that have duration data AND match a reopened identity.
+    // This correctly captures re-completions (e.g. bugreporter 285 min fixed on
+    // a later day) while excluding recurring completions (e.g. daily "Do neck PT").
+
+    for (const task of reopenedDurationTasks) {
+      addMergedTask({
+        id: task.id,
+        taskId: task.taskId,
+        v2TaskId: task.v2TaskId,
+        completedAt: task.completedAt,
+        content: task.content,
+        duration: task.duration,
+        labels: task.labels.length > 0
+          ? task.labels
+          : getParsedTaskLabels(task.content, labelsProp),
+      });
+    }
+
+    const withDuration = mergedTasks.filter((task) => Boolean(task.duration));
+    const withoutDuration = mergedTasks.filter((task) => !task.duration);
+
     const totals = new Map<string, { count: number; minutes: number }>();
-    const availableCounts = new Map<string, number>();
+    for (const task of withDuration) {
+      const duration = task.duration!;
+      const minutes = toMinutes(duration.amount, duration.unit);
 
-    for (const task of tasks) {
-      const minutes = toMinutes(task.duration.amount, task.duration.unit);
-      const taskLabels = task.labels.length > 0 ? task.labels : [NO_LABEL];
-      const comparisonKey = buildComparisonKey(task.content, task.completedAt, labelsProp);
-      availableCounts.set(comparisonKey, (availableCounts.get(comparisonKey) ?? 0) + 1);
-
-      for (const label of taskLabels) {
-        const key = label === NO_LABEL ? NO_LABEL : label;
-        const entry = totals.get(key) ?? { count: 0, minutes: 0 };
+      for (const label of task.labels) {
+        const entry = totals.get(label) ?? { count: 0, minutes: 0 };
         entry.count += 1;
         entry.minutes += minutes;
-        totals.set(key, entry);
+        totals.set(label, entry);
       }
     }
 
@@ -84,32 +616,32 @@ function TaskDurationTable({ completedTasks, dateRange, labels: labelsProp, sele
       }))
       .sort((a, b) => b.totalMinutes - a.totalMinutes);
 
-    const missing = completedTasks.filter((task) => {
-      const comparisonKey = buildComparisonKey(task.content, task.completed_at, labelsProp);
-      const remaining = availableCounts.get(comparisonKey) ?? 0;
-
-      if (remaining > 0) {
-        availableCounts.set(comparisonKey, remaining - 1);
-        return false;
-      }
-
-      return true;
-    });
-
     return {
       rows: aggregated,
-      taskCount: tasks.length,
-      tasksWithoutDuration: missing,
-      totalCompletedCount: completedTasks.length,
-      totalMinutes: tasks.reduce((sum, t) => sum + toMinutes(t.duration.amount, t.duration.unit), 0),
+      taskCount: withDuration.length,
+      tasksWithoutDuration: withoutDuration,
+      totalCompletedCount: mergedTasks.length,
+      totalMinutes: withDuration.reduce((sum, task) => {
+        const duration = task.duration!;
+        return sum + toMinutes(duration.amount, duration.unit);
+      }, 0),
     };
-  }, [completedTasks, labelsProp, tasks]);
+  }, [
+    labelsProp,
+    lookupDurationTasks,
+    needsExpandedLookup,
+    reopenedCompletedTasksInRange,
+    sameDayCompletedTasks,
+    selectedDurationTasks,
+    selectedNoDurationTasks,
+    dateRange,
+  ]);
 
   useEffect(() => {
     setShowTasksWithoutDuration(tasksWithoutDuration.length > 0 && tasksWithoutDuration.length < 6);
   }, [tasksWithoutDuration.length]);
 
-  if (isLoading) {
+  if ((loadingFullData || isSelectedDurationLoading || isLookupLoading) && (completedTasks.length > 0 || loadingFullData)) {
     return (
       <div className="flex items-center justify-center h-[300px]">
         <Spinner />
@@ -117,24 +649,21 @@ function TaskDurationTable({ completedTasks, dateRange, labels: labelsProp, sele
     );
   }
 
-  if (error) {
+  if (combinedDurationError && rows.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-[220px] text-warm-gray">
         <p className="text-sm">Failed to load duration data</p>
-        <p className="text-xs mt-1 opacity-70">{error}</p>
+        <p className="text-xs mt-1 opacity-70">{combinedDurationError}</p>
       </div>
     );
   }
 
   if (rows.length === 0 && tasksWithoutDuration.length === 0) {
-    const isAllTime = dateRange.preset === 'all';
     return (
       <div className="flex flex-col items-center justify-center h-[220px] text-warm-gray">
         <p className="text-sm">No tasks with duration estimates found</p>
         <p className="text-xs mt-1 opacity-70">
-          {isAllTime
-            ? 'Showing last 90 days. Set durations on tasks in Todoist to see them here.'
-            : 'Try expanding the selected time period or add durations to tasks in Todoist.'}
+          Try expanding the selected time period or add durations to tasks in Todoist.
         </p>
       </div>
     );
@@ -214,7 +743,7 @@ function TaskDurationTable({ completedTasks, dateRange, labels: labelsProp, sele
               <ul className="space-y-1">
                 {tasksWithoutDuration.map((task) => (
                   <li
-                    key={`${task.task_id}-${task.completed_at}`}
+                    key={`${task.taskId}-${task.completedAt}`}
                     className="text-sm text-warm-gray"
                   >
                     {task.content}

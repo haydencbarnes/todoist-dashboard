@@ -45,6 +45,7 @@ import { VisibilityButton, VisibilityModal } from './VisibilitySettings';
 import { MobileControlsFAB, MobileControlsSheet } from './MobileControls';
 import { useExportSection } from '../hooks/useExportManager';
 import { filterCompletedTasksByDateRange } from '../utils/filterByDateRange';
+import { getEffectiveCompletedAt } from '@/utils/completionHistory';
 import { type LabelViewMode } from './LabelDistribution';
 import { trackEvent, trackChartInteraction } from '@/utils/analytics';
 import { calculateComparisonPeriod } from '../utils/comparisonPeriod';
@@ -139,12 +140,12 @@ export default function Dashboard(): JSX.Element {
     const eightDaysAgo = endOfDay(subDays(now, 7));
 
     const thisWeek = projectFilteredCompletedTasks.filter(task => {
-      const date = new Date(task.completed_at);
+      const date = new Date(getEffectiveCompletedAt(task));
       return date >= sevenDaysAgo && date <= today;
     }).length;
 
     const lastWeek = projectFilteredCompletedTasks.filter(task => {
-      const date = new Date(task.completed_at);
+      const date = new Date(getEffectiveCompletedAt(task));
       return date >= fourteenDaysAgo && date <= eightDaysAgo;
     }).length;
 
@@ -466,10 +467,11 @@ export default function Dashboard(): JSX.Element {
                 </h2>
                 <div className="text-sm text-warm-gray mb-6">Duration by label for completed tasks</div>
                 <TaskDurationTable
-                  completedTasks={filteredCompletedTasks}
+                  completedTasks={projectFilteredCompletedTasks}
+                  loadingFullData={needsFullData}
+                  selectedProjectIds={selectedProjectIds}
                   dateRange={dateRange}
                   labels={data?.labels ?? []}
-                  selectedProjectIds={selectedProjectIds}
                 />
               </div>
             </LazySection>

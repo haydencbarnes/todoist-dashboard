@@ -1,5 +1,6 @@
 import { CompletedTask, ProjectData } from '../types';
 import { subDays, isWithinInterval } from 'date-fns';
+import { getEffectiveCompletedAt } from '@/utils/completionHistory';
 
 interface ProjectVelocityItem {
   projectId: string;
@@ -77,7 +78,7 @@ export function calculateProjectVelocity(
   const projectVelocityData: ProjectVelocityItem[][] = intervals.map(interval => {
     // Get tasks within this interval
     const tasksInInterval = completedTasks.filter(task => {
-      const completedDate = new Date(task.completed_at);
+      const completedDate = new Date(getEffectiveCompletedAt(task));
       return isWithinInterval(completedDate, {
         start: interval.startDate,
         end: interval.endDate

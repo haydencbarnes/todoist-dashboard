@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import AppTooltip from './shared/AppTooltip';
 import QuestionMark from './shared/QuestionMark';
+import { getEffectiveCompletedAt } from '@/utils/completionHistory';
 
 interface Task {
   completed_at: string;
@@ -106,7 +107,7 @@ const GoalProgress: React.FC<GoalProgressProps> = ({ allData }) => {
 
   const actualCompletions = last30Days.map(date => {
     return allCompletedTasks.filter(task =>
-      task.completed_at.split('T')[0] === date
+      getEffectiveCompletedAt(task).split('T')[0] === date
     ).length;
   });
 

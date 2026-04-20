@@ -3,6 +3,7 @@ import {
   startOfDay, endOfDay, eachDayOfInterval, subDays, 
   subWeeks, subMonths, startOfWeek, format 
 } from 'date-fns';
+import { getEffectiveCompletedAt } from '@/utils/completionHistory';
 
 interface TaskHistory {
   labels: string[];
@@ -34,10 +35,10 @@ export function calculateTaskAverages(tasks: CompletedTask[] | null): TaskAverag
   // Filter tasks to last year and sort by date
   const validTasks = tasks
     .filter(task => {
-      const date = new Date(task.completed_at);
+      const date = new Date(getEffectiveCompletedAt(task));
       return date >= yearStart && date <= now;
     })
-    .sort((a, b) => new Date(a.completed_at).getTime() - new Date(b.completed_at).getTime());
+    .sort((a, b) => new Date(getEffectiveCompletedAt(a)).getTime() - new Date(getEffectiveCompletedAt(b)).getTime());
 
   if (validTasks.length === 0) return null;
 
@@ -46,11 +47,11 @@ export function calculateTaskAverages(tasks: CompletedTask[] | null): TaskAverag
   const fourWeeksAgo = subWeeks(today, 4);
   const dailyTaskCounts = validTasks
     .filter(task => {
-      const date = new Date(task.completed_at);
+      const date = new Date(getEffectiveCompletedAt(task));
       return date >= startOfDay(fourWeeksAgo) && date <= endOfDay(today);
     })
     .reduce((acc: { [key: string]: number }, task) => {
-      const date = new Date(task.completed_at);
+      const date = new Date(getEffectiveCompletedAt(task));
       const dayKey = format(date, 'yyyy-MM-dd');
       acc[dayKey] = (acc[dayKey] || 0) + 1;
       return acc;
@@ -63,7 +64,7 @@ export function calculateTaskAverages(tasks: CompletedTask[] | null): TaskAverag
 
   // Get today's task count
   const todayCount = validTasks.filter(task => {
-    const date = new Date(task.completed_at);
+    const date = new Date(getEffectiveCompletedAt(task));
     return date >= startOfDay(today) && date <= endOfDay(today);
   }).length;
 
@@ -75,11 +76,11 @@ export function calculateTaskAverages(tasks: CompletedTask[] | null): TaskAverag
   const twelveWeeksAgo = subWeeks(today, 12);
   const weeklyTaskCounts = validTasks
     .filter(task => {
-      const date = new Date(task.completed_at);
+      const date = new Date(getEffectiveCompletedAt(task));
       return date >= startOfDay(twelveWeeksAgo) && date <= endOfDay(today);
     })
     .reduce((acc: { [key: string]: number }, task) => {
-      const date = new Date(task.completed_at);
+      const date = new Date(getEffectiveCompletedAt(task));
       const weekStart = startOfWeek(date);
       const weekKey = format(weekStart, 'yyyy-ww');
       acc[weekKey] = (acc[weekKey] || 0) + 1;
@@ -93,7 +94,7 @@ export function calculateTaskAverages(tasks: CompletedTask[] | null): TaskAverag
 
   // Current week's task count (last 7 days)
   const thisWeekCount = validTasks.filter(task => {
-    const date = new Date(task.completed_at);
+    const date = new Date(getEffectiveCompletedAt(task));
     const sevenDaysAgo = subDays(today, 6);
     return date >= startOfDay(sevenDaysAgo) && date <= endOfDay(today);
   }).length;
@@ -106,11 +107,11 @@ export function calculateTaskAverages(tasks: CompletedTask[] | null): TaskAverag
   const twelveMonthsAgo = subMonths(today, 12);
   const monthlyTaskCounts = validTasks
     .filter(task => {
-      const date = new Date(task.completed_at);
+      const date = new Date(getEffectiveCompletedAt(task));
       return date >= startOfDay(twelveMonthsAgo) && date <= endOfDay(today);
     })
     .reduce((acc: { [key: string]: number }, task) => {
-      const date = new Date(task.completed_at);
+      const date = new Date(getEffectiveCompletedAt(task));
       const monthKey = format(date, 'yyyy-MM');
       acc[monthKey] = (acc[monthKey] || 0) + 1;
       return acc;
@@ -123,7 +124,7 @@ export function calculateTaskAverages(tasks: CompletedTask[] | null): TaskAverag
 
   // Current month's task count (last 30 days)
   const thisMonthCount = validTasks.filter(task => {
-    const date = new Date(task.completed_at);
+    const date = new Date(getEffectiveCompletedAt(task));
     const thirtyDaysAgo = subDays(today, 29);
     return date >= startOfDay(thirtyDaysAgo) && date <= endOfDay(today);
   }).length;
@@ -145,7 +146,7 @@ export function calculateTaskAverages(tasks: CompletedTask[] | null): TaskAverag
 
   // Count tasks for each day
   validTasks.forEach(task => {
-    const completedDate = new Date(task.completed_at);
+    const completedDate = new Date(getEffectiveCompletedAt(task));
     const dayKey = format(startOfDay(completedDate), 'yyyy-MM-dd');
     if (completedDate >= startOfDay(sevenDaysAgo) && completedDate <= endOfDay(today)) {
       dailyData[dayKey] = (dailyData[dayKey] || 0) + 1;
@@ -161,7 +162,7 @@ export function calculateTaskAverages(tasks: CompletedTask[] | null): TaskAverag
   // Group by weeks for the chart
   const weeklyData: { [key: string]: number } = {};
   validTasks.forEach(task => {
-    const date = new Date(task.completed_at);
+    const date = new Date(getEffectiveCompletedAt(task));
     const weekKey = `${date.getFullYear()}-W${getWeekNumber(date)}`;
     weeklyData[weekKey] = (weeklyData[weekKey] || 0) + 1;
   });
@@ -169,7 +170,7 @@ export function calculateTaskAverages(tasks: CompletedTask[] | null): TaskAverag
   // Group by months for the chart
   const monthlyData: { [key: string]: number } = {};
   validTasks.forEach(task => {
-    const date = new Date(task.completed_at);
+    const date = new Date(getEffectiveCompletedAt(task));
     const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
     monthlyData[monthKey] = (monthlyData[monthKey] || 0) + 1;
   });

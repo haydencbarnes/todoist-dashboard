@@ -3,20 +3,28 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { fetchWithRetry } from '../../utils/fetchWithRetry';
 import type { TodoistTaskDuration } from '../../types';
 
+type ApiTaskRecord = Record<string, unknown>;
+
 interface DurationTaskItem {
   id: string;
+  added_at: string;
   content: string;
   project_id: string;
   completed_at: string;
+  task_id: string;
+  v2_task_id: string;
   duration: TodoistTaskDuration;
   labels: string[];
 }
 
 interface NoDurationTaskItem {
   id: string;
+  added_at: string;
   content: string;
   project_id: string;
   completed_at: string;
+  task_id: string;
+  v2_task_id: string;
   labels: string[];
 }
 
@@ -29,22 +37,185 @@ interface ErrorResponse {
   error: string;
 }
 
+interface DurationDebugEntry {
+  id: string;
+  task_id: string;
+  v2_task_id: string;
+  content: string;
+  completed_at: string;
+  duration: unknown;
+  duration_unit: unknown;
+  item_object_duration: unknown;
+  item_object_duration_unit: unknown;
+  meta_data_duration: unknown;
+  meta_data_duration_unit: unknown;
+}
+
 const MAX_PAGES = 50;
 const PAGE_LIMIT = 200;
 const PAGE_DELAY_MS = 50;
 
-function parseDuration(value: unknown): TodoistTaskDuration | null {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
-  const d = value as { amount?: unknown; unit?: unknown };
-  if (
-    typeof d.amount === 'number' &&
-    Number.isFinite(d.amount) &&
-    d.amount > 0 &&
-    (d.unit === 'minute' || d.unit === 'day')
-  ) {
-    return { amount: d.amount, unit: d.unit };
+function asObjectOrNull(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : null;
+}
+
+function getStringValue(source: ApiTaskRecord, ...keys: string[]): string {
+  for (const key of keys) {
+    const value = source[key];
+    if (typeof value === 'string') {
+      return value;
+    }
+    if (typeof value === 'number' || typeof value === 'bigint') {
+      return String(value);
+    }
   }
+
+  return '';
+}
+
+function getStringArrayValue(source: ApiTaskRecord, ...keys: string[]): string[] {
+  for (const key of keys) {
+    const value = source[key];
+    if (Array.isArray(value)) {
+      return value.map(String);
+    }
+  }
+
+  return [];
+}
+
+function parsePositiveNumber(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isFinite(value) && value > 0) {
+    return value;
+  }
+
+  if (typeof value === 'string') {
+    const parsed = Number(value.trim());
+    if (Number.isFinite(parsed) && parsed > 0) {
+      return parsed;
+    }
+  }
+
   return null;
+}
+
+function normalizeDurationUnit(value: unknown): 'minute' | 'day' | null {
+  if (typeof value !== 'string') {
+    return null;
+  }
+
+  const normalized = value.trim().toLowerCase();
+  if (normalized === 'minute' || normalized === 'minutes') {
+    return 'minute';
+  }
+  if (normalized === 'day' || normalized === 'days') {
+    return 'day';
+  }
+
+  return null;
+}
+
+function normalizeTaskDuration(value: unknown, unitHint?: unknown): TodoistTaskDuration | null {
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    const d = value as { amount?: unknown; unit?: unknown };
+    const amount = parsePositiveNumber(d.amount);
+    const unit = normalizeDurationUnit(d.unit);
+
+    if (amount && unit) {
+      return { amount, unit };
+    }
+  }
+
+  const amount = parsePositiveNumber(value);
+  const unit = normalizeDurationUnit(unitHint);
+  if (amount && unit) {
+    return { amount, unit };
+  }
+
+  return null;
+}
+
+function extractDurationFromContainer(container: Record<string, unknown> | null): TodoistTaskDuration | null {
+  if (!container) {
+    return null;
+  }
+
+  return normalizeTaskDuration(
+    container.duration,
+    container.duration_unit ?? container.durationUnit
+  );
+}
+
+function extractTaskDuration(source: ApiTaskRecord): TodoistTaskDuration | null {
+  const itemObject = asObjectOrNull(source.item_object) ?? asObjectOrNull(source.itemObject);
+  const metaData = asObjectOrNull(source.meta_data) ?? asObjectOrNull(source.metaData);
+  const containers: Array<Record<string, unknown> | null> = [source, itemObject, metaData];
+
+  for (const container of [itemObject, metaData]) {
+    if (!container) continue;
+
+    containers.push(
+      asObjectOrNull(container.task),
+      asObjectOrNull(container.item),
+      asObjectOrNull(container.item_object) ?? asObjectOrNull(container.itemObject)
+    );
+  }
+
+  for (const container of containers) {
+    const duration = extractDurationFromContainer(container);
+    if (duration) {
+      return duration;
+    }
+  }
+
+  return null;
+}
+
+function extractTaskLabels(source: ApiTaskRecord): string[] {
+  const topLevelLabels = getStringArrayValue(source, 'labels');
+  if (topLevelLabels.length > 0) {
+    return topLevelLabels;
+  }
+
+  const itemObject = asObjectOrNull(source.item_object) ?? asObjectOrNull(source.itemObject);
+  const metaData = asObjectOrNull(source.meta_data) ?? asObjectOrNull(source.metaData);
+
+  for (const container of [itemObject, metaData]) {
+    if (!container) continue;
+
+    const containerLabels = getStringArrayValue(container, 'labels');
+    if (containerLabels.length > 0) {
+      return containerLabels;
+    }
+
+    const nestedTask = asObjectOrNull(container.task);
+    if (nestedTask) {
+      const nestedTaskLabels = getStringArrayValue(nestedTask, 'labels');
+      if (nestedTaskLabels.length > 0) {
+        return nestedTaskLabels;
+      }
+    }
+
+    const nestedItem = asObjectOrNull(container.item);
+    if (nestedItem) {
+      const nestedItemLabels = getStringArrayValue(nestedItem, 'labels');
+      if (nestedItemLabels.length > 0) {
+        return nestedItemLabels;
+      }
+    }
+
+    const nestedObject = asObjectOrNull(container.item_object) ?? asObjectOrNull(container.itemObject);
+    if (nestedObject) {
+      const nestedObjectLabels = getStringArrayValue(nestedObject, 'labels');
+      if (nestedObjectLabels.length > 0) {
+        return nestedObjectLabels;
+      }
+    }
+  }
+
+  return [];
 }
 
 export default async function handler(
@@ -72,6 +243,7 @@ export default async function handler(
     const accessToken = token.accessToken as string;
     const tasks: DurationTaskItem[] = [];
     const noDurationTasks: NoDurationTaskItem[] = [];
+    const debugEntries: DurationDebugEntry[] = [];
     let cursor: string | null = null;
     let pageCount = 0;
 
@@ -102,19 +274,39 @@ export default async function handler(
 
       for (const raw of items) {
         if (!raw || typeof raw !== 'object') continue;
-        const item = raw as Record<string, unknown>;
-        const duration = parseDuration(item.duration);
+        const item = raw as ApiTaskRecord;
+        const itemObject = asObjectOrNull(item.item_object) ?? asObjectOrNull(item.itemObject);
+        const metaData = asObjectOrNull(item.meta_data) ?? asObjectOrNull(item.metaData);
+        const duration = extractTaskDuration(item);
         const base = {
-          id: String(item.id ?? ''),
-          content: String(item.content ?? ''),
-          project_id: String(item.project_id ?? ''),
-          completed_at: String(item.completed_at ?? ''),
-          labels: Array.isArray(item.labels) ? item.labels.map(String) : [],
+          id: getStringValue(item, 'id'),
+          added_at: getStringValue(item, 'added_at', 'addedAt'),
+          content: getStringValue(item, 'content'),
+          project_id: getStringValue(item, 'project_id', 'projectId'),
+          completed_at: getStringValue(item, 'completed_at', 'completedAt'),
+          task_id: getStringValue(item, 'task_id', 'taskId', 'id'),
+          v2_task_id: getStringValue(item, 'v2_task_id', 'v2TaskId', 'task_id', 'taskId', 'id'),
+          labels: extractTaskLabels(item),
         };
 
         if (duration) {
           tasks.push({ ...base, duration });
         } else {
+          if (request.query.debugDuration === '1') {
+            debugEntries.push({
+              id: base.id,
+              task_id: base.task_id,
+              v2_task_id: base.v2_task_id,
+              content: base.content,
+              completed_at: base.completed_at,
+              duration: item.duration,
+              duration_unit: item.duration_unit ?? item.durationUnit,
+              item_object_duration: itemObject?.duration,
+              item_object_duration_unit: itemObject?.duration_unit ?? itemObject?.durationUnit,
+              meta_data_duration: metaData?.duration,
+              meta_data_duration_unit: metaData?.duration_unit ?? metaData?.durationUnit,
+            });
+          }
           noDurationTasks.push(base);
         }
       }
@@ -126,6 +318,23 @@ export default async function handler(
         await new Promise(r => setTimeout(r, PAGE_DELAY_MS));
       }
     } while (cursor && pageCount < MAX_PAGES);
+
+    if (request.query.debugDuration === '1') {
+      console.info('getCompletedWithDuration debug', {
+        since,
+        until,
+        tasksWithDuration: tasks.length,
+        tasksWithoutDuration: noDurationTasks.length,
+        taskSamples: tasks.slice(0, 25).map((task) => ({
+          task_id: task.task_id,
+          completed_at: task.completed_at,
+          content: task.content,
+          duration: task.duration,
+          labels: task.labels,
+        })),
+        missingSamples: debugEntries.slice(0, 20),
+      });
+    }
 
     response.status(200).json({ tasks, noDurationTasks });
   } catch (error) {

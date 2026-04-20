@@ -2,6 +2,7 @@ import { ReactMarkdown } from "react-markdown/lib/react-markdown";
 import { getProjectById, colorNameToHex } from "../../utils/projectUtils";
 import { IoIosCheckmarkCircle } from "react-icons/io";
 import { CompletedTask, ProjectData, TodoistColor } from "../../types";
+import { getEffectiveCompletedAt } from "@/utils/completionHistory";
 
 interface TaskWithProject {
   task: CompletedTask;
@@ -47,7 +48,7 @@ export default function Tasks({ getPageItems, projectData, groupByProject }: Tas
     const sortedProjects: ProjectGroup[] = Object.entries(tasksByProject)
       .map(([projectId, tasks]) => ({
         project: getProjectById(projectId, projectData),
-        tasks: tasks.sort((a, b) => new Date(b.completed_at).getTime() - new Date(a.completed_at).getTime())
+        tasks: tasks.sort((a, b) => new Date(getEffectiveCompletedAt(b)).getTime() - new Date(getEffectiveCompletedAt(a)).getTime())
       }))
       .sort((a, b) => (a.project?.projectName ?? '').localeCompare(b.project?.projectName ?? ''));
 
@@ -104,7 +105,7 @@ export default function Tasks({ getPageItems, projectData, groupByProject }: Tas
                         <div className="shrink-0 flex flex-col items-end justify-center">
                           <div className="text-xs text-warm-gray whitespace-nowrap print:text-gray-600">
                             <IoIosCheckmarkCircle className="inline text-lg mr-1" title="Done" />
-                            {new Date(task.completed_at).toLocaleDateString('en-US', {
+                            {new Date(getEffectiveCompletedAt(task)).toLocaleDateString('en-US', {
                               month: 'short',
                               day: 'numeric',
                               year: 'numeric',
@@ -176,7 +177,7 @@ export default function Tasks({ getPageItems, projectData, groupByProject }: Tas
                   <div className="shrink-0 flex flex-col justify-center sm:items-end">
                     <div className="text-xs text-white whitespace-nowrap print:inline">
                       <IoIosCheckmarkCircle className="inline text-lg mr-1" title="Done" />
-                      {new Date(task.completed_at).toLocaleDateString('en-US', {
+                      {new Date(getEffectiveCompletedAt(task)).toLocaleDateString('en-US', {
                         month: 'short',
                         day: 'numeric',
                         year: 'numeric',

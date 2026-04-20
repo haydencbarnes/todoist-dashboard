@@ -6,6 +6,7 @@ import { FaArrowRight } from 'react-icons/fa';
 import { ActiveTask } from '../../types';
 import { calculateStats } from './utils/index';
 import { trackNavigation } from '@/utils/analytics';
+import { getEffectiveCompletedAt } from '@/utils/completionHistory';
 
 interface RecurringTasksPreviewProps {
   activeTasks: ActiveTask[];
@@ -26,7 +27,7 @@ const RecurringTasksPreview: React.FC<RecurringTasksPreviewProps> = ({
   // Calculate average completion rate
   const completionRates = recurringTasks.map(task => {
     const taskCompletions = allCompletedTasks.filter(ct => ct.task_id === task.id);
-    const stats = calculateStats(task, taskCompletions.map(tc => new Date(tc.completed_at)));
+    const stats = calculateStats(task, taskCompletions.map(tc => new Date(getEffectiveCompletedAt(tc))));
     return stats.completionRate;
   });
 

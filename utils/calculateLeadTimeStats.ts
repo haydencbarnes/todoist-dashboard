@@ -1,4 +1,5 @@
 import { CompletedTask, ActiveTask } from '../types';
+import { getEffectiveCompletedAt } from '@/utils/completionHistory';
 
 interface LeadTimeBucket {
   name: string;
@@ -22,7 +23,7 @@ export function calculateLeadTimeStats(completedTasks: CompletedTask[], activeTa
   const tasksWithDates = completedTasks.filter(task => {
     // Try to find matching active task to get creation date
     const matchingTask = activeTasks.find(activeTask => activeTask.id === task.task_id);
-    return Boolean(matchingTask?.createdAt && task.completed_at);
+    return Boolean(matchingTask?.createdAt && getEffectiveCompletedAt(task));
   });
 
   // If no valid tasks, return default stats
@@ -42,7 +43,7 @@ export function calculateLeadTimeStats(completedTasks: CompletedTask[], activeTa
     if (!matchingTask || !matchingTask.createdAt) return 0;
     
     const createdAt = new Date(matchingTask.createdAt);
-    const completedAt = new Date(task.completed_at);
+    const completedAt = new Date(getEffectiveCompletedAt(task));
     
     // Calculate difference in milliseconds
     const diffTime = completedAt.getTime() - createdAt.getTime();

@@ -1,5 +1,6 @@
 import { CompletedTask } from '../types';
 import { DayOfWeek } from './getDayOfWeekName';
+import { getEffectiveCompletedAt } from '@/utils/completionHistory';
 
 interface DayOfWeekStats {
   dayOfWeek: DayOfWeek;
@@ -24,13 +25,13 @@ export function calculateMostProductiveDayOfWeek(completedTasks: CompletedTask[]
 
   // Filter tasks from the last 4 weeks
   const recentTasks = completedTasks.filter(task => {
-    const taskDate = new Date(task.completed_at);
+    const taskDate = new Date(getEffectiveCompletedAt(task));
     return taskDate >= fourWeeksAgo && taskDate <= currentDate;
   });
 
   // Count tasks for each day of the week
   recentTasks.forEach(task => {
-    const taskDate = new Date(task.completed_at);
+    const taskDate = new Date(getEffectiveCompletedAt(task));
     const dayOfWeek = taskDate.getDay() as DayOfWeek;
     dayCounts[dayOfWeek]++;
   });

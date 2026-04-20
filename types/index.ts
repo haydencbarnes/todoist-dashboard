@@ -9,14 +9,17 @@ export interface TodoistTaskDuration {
 
 // API Response Types - These match the actual API responses
 export type CompletedTask = {
+  added_at: string;
   completed_at: string;
   content: string;
   duration?: TodoistTaskDuration | null;
+  effective_completed_at: string;
   id: string;
   item_object: Record<string, unknown> | null;
   meta_data: Record<string, unknown> | null;
   note_count: number;
   notes: any[];
+  original_completed_at?: string | null;
   project_id: string;
   section_id: string;
   task_id: string;

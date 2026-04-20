@@ -8,6 +8,7 @@ import { RecurrencePattern } from './streaks/types';
 import { getTaskFrequency, calculateStats } from './utils';
 import { parsePattern } from './streaks/index';
 import { trackChartInteraction } from '@/utils/analytics';
+import { getEffectiveCompletedAt } from '@/utils/completionHistory';
 import AppTooltip from '../shared/AppTooltip';
 import QuestionMark from '../shared/QuestionMark';
 
@@ -69,7 +70,7 @@ const RecurringTasksCard: React.FC<Props> = ({ activeTasks, allCompletedTasks, p
     return recurringTasks.map((task) => {
       const taskCompletions = allCompletedTasks.filter(ct => ct.task_id === task.id);
       const frequency = getTaskFrequency(task.due?.string);
-      const completionDates = taskCompletions.map(ct => new Date(ct.completed_at));
+      const completionDates = taskCompletions.map(ct => new Date(getEffectiveCompletedAt(ct)));
       const stats = calculateStats(task, completionDates);
 
       const pattern = task.due?.string ? parsePattern(task.due.string) : undefined;

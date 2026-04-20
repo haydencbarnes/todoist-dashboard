@@ -1,4 +1,5 @@
 import { CompletedTask } from '../types';
+import { getEffectiveCompletedAt } from '@/utils/completionHistory';
 
 export interface HeatmapDataPoint {
   hour: number;
@@ -44,7 +45,7 @@ export function calculateCompletionHeatmapData(completedTasks: CompletedTask[]):
   
   // Process all tasks
   for (const task of completedTasks) {
-    const date = new Date(task.completed_at);
+    const date = new Date(getEffectiveCompletedAt(task));
     const day = date.getDay(); // 0-6
     const hour = date.getHours(); // 0-23
     

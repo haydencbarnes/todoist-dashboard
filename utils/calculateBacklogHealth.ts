@@ -1,5 +1,6 @@
 import { ActiveTask, CompletedTask } from '../types';
 import { subDays, differenceInDays } from 'date-fns';
+import { getEffectiveCompletedAt } from '@/utils/completionHistory';
 
 export interface BacklogHealthMetrics {
   healthScore: number; // 0-100
@@ -110,7 +111,7 @@ export function calculateBacklogHealth(
   // Calculate weekly completion capacity (average completions per week over last 8 weeks)
   const eightWeeksAgo = subDays(now, 56);
   const recentCompletions = completedTasks.filter(task => {
-    const completedAt = new Date(task.completed_at);
+    const completedAt = new Date(getEffectiveCompletedAt(task));
     return completedAt >= eightWeeksAgo;
   });
 
@@ -118,11 +119,14 @@ export function calculateBacklogHealth(
   if (recentCompletions.length > 0) {
     // Sort to find earliest and latest completions
     const sortedByDate = [...recentCompletions].sort((a, b) =>
-      new Date(a.completed_at).getTime() - new Date(b.completed_at).getTime()
+      new Date(getEffectiveCompletedAt(a)).getTime() - new Date(getEffectiveCompletedAt(b)).getTime()
     );
     const earliestCompletion = sortedByDate[0]!;
     const latestCompletion = sortedByDate[sortedByDate.length - 1]!;
-    const daysSpan = differenceInDays(new Date(latestCompletion.completed_at), new Date(earliestCompletion.completed_at));
+    const daysSpan = differenceInDays(
+      new Date(getEffectiveCompletedAt(latestCompletion)),
+      new Date(getEffectiveCompletedAt(earliestCompletion))
+    );
     weeksOfData = Math.max(1, Math.min(8, Math.ceil(daysSpan / 7)));
   }
 
