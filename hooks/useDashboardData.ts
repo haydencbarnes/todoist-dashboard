@@ -88,16 +88,26 @@ export function useDashboardData() {
       return tasks;
     }
 
-    const response = await fetch('/api/getOriginalCompletionDates', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        tasks: tasks.map(toCompletionHistoryTaskRef),
-      }),
-      signal: abortControllerRef.current?.signal || null,
-    });
+    let response: Response;
+    try {
+      response = await fetch('/api/getOriginalCompletionDates', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          tasks: tasks.map(toCompletionHistoryTaskRef),
+        }),
+        signal: abortControllerRef.current?.signal || null,
+      });
+    } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') {
+        throw err;
+      }
+
+      console.warn('Failed to normalize completion history; using raw completion dates.', err);
+      return tasks;
+    }
 
     if (!response.ok) {
       throw new Error(`Failed to normalize completed tasks: ${response.status} ${response.statusText}`);

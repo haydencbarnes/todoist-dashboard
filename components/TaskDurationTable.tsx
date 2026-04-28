@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import type { CompletedTask, DateRange, Label, TodoistTaskDuration } from '@/types';
+import type { CompletedTask, DateRange, Label, ProjectData, TodoistTaskDuration, TodoistColor } from '@/types';
 import { useTaskDurations } from '@/hooks/useTaskDurations';
 import { parseLabelsFromContent, stripLabelsFromContent } from '@/utils/parseLabelsFromContent';
 import { getCompletionHistoryKey } from '@/utils/completionHistory';
+import { colorNameToHex } from '@/utils/projectUtils';
 import Spinner from './shared/Spinner';
 
 interface TaskDurationTableProps {
@@ -11,10 +12,19 @@ interface TaskDurationTableProps {
   selectedProjectIds: string[];
   dateRange: DateRange;
   labels: Label[];
+  projectData: ProjectData[];
 }
 
 interface LabelRow {
   label: string;
+  tasksCompleted: number;
+  totalMinutes: number;
+}
+
+interface ProjectRow {
+  projectId: string;
+  projectName: string;
+  projectColor: TodoistColor | null;
   tasksCompleted: number;
   totalMinutes: number;
 }
@@ -37,6 +47,7 @@ interface MergedTask {
   id: string;
   taskId: string;
   v2TaskId: string;
+  projectId: string;
   completedAt: string;
   content: string;
   duration: TodoistTaskDuration | null;
@@ -212,10 +223,10 @@ function getMergeDedupKeys(task: {
   completedAt?: string;
   completed_at?: string;
 }, labels: Label[]): string[] {
+  // Do not dedupe by content+project alone: two real same-day tasks can share a title.
   return [
     getLocalTaskKey(task),
     getLocalContentAddedKey(task, labels),
-    getLocalContentProjectKey(task, labels),
   ].filter(Boolean);
 }
 
@@ -236,6 +247,7 @@ function TaskDurationTable({
   selectedProjectIds,
   dateRange,
   labels: labelsProp,
+  projectData,
 }: TaskDurationTableProps) {
   const {
     tasks: selectedDurationTasks,
@@ -327,7 +339,7 @@ function TaskDurationTable({
 
   const combinedDurationError = selectedDurationError ?? lookupDurationError;
 
-  const { rows, taskCount, tasksWithoutDuration, totalCompletedCount, totalMinutes } = useMemo(() => {
+  const { labelRows, projectRows, taskCount, tasksWithoutDuration, totalCompletedCount, totalMinutes } = useMemo(() => {
     const candidateSource = needsExpandedLookup
       ? lookupDurationTasks
       : selectedDurationTasks;
@@ -443,24 +455,38 @@ function TaskDurationTable({
     // DIFFERENT task (different task_id) — e.g. a bugreporter task that was
     // recreated with an updated duration. Task IDs may differ across APIs,
     // so content+project matching is the reliable fallback.
-    const sameDayContentAddedKeys = new Set(
-      sameDayCompletedTasks.map((task) => getContentAddedKey(task, labelsProp)).filter(Boolean)
-    );
-    const sameDayContentProjectKeys = new Set(
-      sameDayCompletedTasks.map((task) => getContentProjectKey(task, labelsProp)).filter(Boolean)
-    );
+    const sameDayContentAddedKeys = new Set<string>();
+    const sameDayContentProjectCounts = new Map<string, number>();
+    const addSameDayContentProjectKey = (key: string) => {
+      if (!key) {
+        return;
+      }
+      sameDayContentProjectCounts.set(key, (sameDayContentProjectCounts.get(key) ?? 0) + 1);
+    };
+
+    for (const task of sameDayCompletedTasks) {
+      const k1 = getContentAddedKey(task, labelsProp);
+      const k2 = getContentProjectKey(task, labelsProp);
+      if (k1) sameDayContentAddedKeys.add(k1);
+      addSameDayContentProjectKey(k2);
+    }
     for (const task of selectedDurationTasks) {
       const k1 = getContentAddedKey(task, labelsProp);
       const k2 = getContentProjectKey(task, labelsProp);
       if (k1) sameDayContentAddedKeys.add(k1);
-      if (k2) sameDayContentProjectKeys.add(k2);
+      addSameDayContentProjectKey(k2);
     }
     for (const task of selectedNoDurationTasks) {
       const k1 = getContentAddedKey(task, labelsProp);
       const k2 = getContentProjectKey(task, labelsProp);
       if (k1) sameDayContentAddedKeys.add(k1);
-      if (k2) sameDayContentProjectKeys.add(k2);
+      addSameDayContentProjectKey(k2);
     }
+    const sameDayContentProjectKeys = new Set(
+      Array.from(sameDayContentProjectCounts.entries())
+        .filter(([, count]) => count === 1)
+        .map(([key]) => key)
+    );
 
     const reopenedDurationTasks = lookupDurationTasks.filter((task) => {
       if (isWithinDateRange(task.completedAt, dateRange)) {
@@ -510,13 +536,27 @@ function TaskDurationTable({
       mergedTasks.push(task);
     };
 
+    const addDurationBackedTask = (task: MergedTask) => {
+      const occurrenceKey = getLocalTaskKey(task) || `${task.id}|${task.completedAt}`;
+      if (seen.has(occurrenceKey)) {
+        return;
+      }
+
+      seen.add(occurrenceKey);
+      for (const key of getMergeDedupKeys(task, labelsProp)) {
+        seen.add(key);
+      }
+      mergedTasks.push(task);
+    };
+
     for (const task of selectedDurationTasks) {
       takeCandidate(task);
 
-      addMergedTask({
+      addDurationBackedTask({
         id: task.id,
         taskId: task.taskId,
         v2TaskId: task.v2TaskId,
+        projectId: task.projectId,
         completedAt: task.completedAt,
         content: task.content,
         duration: task.duration,
@@ -532,6 +572,7 @@ function TaskDurationTable({
         id: task.id,
         taskId: task.taskId,
         v2TaskId: task.v2TaskId,
+        projectId: task.projectId,
         completedAt: task.completedAt,
         content: task.content,
         duration: matchedCandidate?.duration ?? null,
@@ -555,6 +596,7 @@ function TaskDurationTable({
         id: task.id,
         taskId: task.task_id,
         v2TaskId: task.v2_task_id,
+        projectId: task.project_id,
         completedAt: task.completed_at,
         content: matchedCandidate?.content ?? task.content,
         duration: matchedCandidate?.duration ?? task.duration ?? null,
@@ -583,6 +625,7 @@ function TaskDurationTable({
         id: task.id,
         taskId: task.taskId,
         v2TaskId: task.v2TaskId,
+        projectId: task.projectId,
         completedAt: task.completedAt,
         content: task.content,
         duration: task.duration,
@@ -595,20 +638,40 @@ function TaskDurationTable({
     const withDuration = mergedTasks.filter((task) => Boolean(task.duration));
     const withoutDuration = mergedTasks.filter((task) => !task.duration);
 
-    const totals = new Map<string, { count: number; minutes: number }>();
+    const labelTotals = new Map<string, { count: number; minutes: number }>();
+    const projectTotals = new Map<string, {
+      count: number;
+      minutes: number;
+      projectName: string;
+      projectColor: TodoistColor | null;
+    }>();
+    const projectMap = new Map(projectData.map((project) => [project.id, project]));
+
     for (const task of withDuration) {
       const duration = task.duration!;
       const minutes = toMinutes(duration.amount, duration.unit);
 
       for (const label of task.labels) {
-        const entry = totals.get(label) ?? { count: 0, minutes: 0 };
+        const entry = labelTotals.get(label) ?? { count: 0, minutes: 0 };
         entry.count += 1;
         entry.minutes += minutes;
-        totals.set(label, entry);
+        labelTotals.set(label, entry);
       }
+
+      const project = projectMap.get(task.projectId);
+      const projectEntry = projectTotals.get(task.projectId) ?? {
+        count: 0,
+        minutes: 0,
+        projectName: project?.name ?? 'Deleted Project',
+        projectColor: (project?.color ?? null) as TodoistColor | null,
+      };
+
+      projectEntry.count += 1;
+      projectEntry.minutes += minutes;
+      projectTotals.set(task.projectId, projectEntry);
     }
 
-    const aggregated: LabelRow[] = Array.from(totals.entries())
+    const aggregatedLabelRows: LabelRow[] = Array.from(labelTotals.entries())
       .map(([label, { count, minutes }]) => ({
         label,
         tasksCompleted: count,
@@ -616,8 +679,19 @@ function TaskDurationTable({
       }))
       .sort((a, b) => b.totalMinutes - a.totalMinutes);
 
+    const aggregatedProjectRows: ProjectRow[] = Array.from(projectTotals.entries())
+      .map(([projectId, { count, minutes, projectName, projectColor }]) => ({
+        projectId,
+        projectName,
+        projectColor,
+        tasksCompleted: count,
+        totalMinutes: minutes,
+      }))
+      .sort((a, b) => b.totalMinutes - a.totalMinutes);
+
     return {
-      rows: aggregated,
+      labelRows: aggregatedLabelRows,
+      projectRows: aggregatedProjectRows,
       taskCount: withDuration.length,
       tasksWithoutDuration: withoutDuration,
       totalCompletedCount: mergedTasks.length,
@@ -630,6 +704,7 @@ function TaskDurationTable({
     labelsProp,
     lookupDurationTasks,
     needsExpandedLookup,
+    projectData,
     reopenedCompletedTasksInRange,
     sameDayCompletedTasks,
     selectedDurationTasks,
@@ -649,7 +724,7 @@ function TaskDurationTable({
     );
   }
 
-  if (combinedDurationError && rows.length === 0) {
+  if (combinedDurationError && labelRows.length === 0 && projectRows.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-[220px] text-warm-gray">
         <p className="text-sm">Failed to load duration data</p>
@@ -658,7 +733,7 @@ function TaskDurationTable({
     );
   }
 
-  if (rows.length === 0 && tasksWithoutDuration.length === 0) {
+  if (labelRows.length === 0 && projectRows.length === 0 && tasksWithoutDuration.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-[220px] text-warm-gray">
         <p className="text-sm">No tasks with duration estimates found</p>
@@ -678,19 +753,22 @@ function TaskDurationTable({
         )}
       </p>
 
-      {rows.length > 0 && (
+      {labelRows.length > 0 && (
         <div className="overflow-hidden rounded-xl border border-warm-border bg-warm-black/20">
+          <div className="border-b border-warm-border px-4 py-3">
+            <h3 className="text-sm font-semibold text-white">Duration by Label</h3>
+          </div>
           <div className="max-h-[420px] overflow-auto">
             <table className="min-w-full table-fixed">
               <thead className="sticky top-0 z-10 bg-warm-card">
                 <tr className="border-b border-warm-border text-left text-xs uppercase tracking-wide text-warm-gray">
                   <th scope="col" className="w-[40%] px-4 py-3 font-medium">Label</th>
                   <th scope="col" className="w-[30%] px-4 py-3 text-right font-medium">Tasks Completed</th>
-                  <th scope="col" className="w-[30%] px-4 py-3 text-right font-medium">Time (min)</th>
+                  <th scope="col" className="w-[30%] px-4 py-3 text-right font-medium">Time</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-warm-border">
-                {rows.map((row) => (
+                {labelRows.map((row) => (
                   <tr key={row.label} className="align-top">
                     <td className="px-4 py-3 text-sm text-white">
                       {row.label}
@@ -699,7 +777,59 @@ function TaskDurationTable({
                       {row.tasksCompleted}
                     </td>
                     <td className="px-4 py-3 text-right text-sm font-medium tabular-nums text-white">
-                      {row.totalMinutes}
+                      {formatMinutesWithHours(row.totalMinutes)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr className="border-t border-warm-border bg-warm-card/50">
+                  <td className="px-4 py-3 text-sm font-semibold text-white">Total</td>
+                  <td className="px-4 py-3 text-right text-sm font-semibold tabular-nums text-white">
+                    {taskCount}
+                  </td>
+                  <td className="px-4 py-3 text-right text-sm font-semibold tabular-nums text-white">
+                    {formatMinutesWithHours(totalMinutes)}
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {projectRows.length > 0 && (
+        <div className="overflow-hidden rounded-xl border border-warm-border bg-warm-black/20">
+          <div className="border-b border-warm-border px-4 py-3">
+            <h3 className="text-sm font-semibold text-white">Duration by Project</h3>
+          </div>
+          <div className="max-h-[420px] overflow-auto">
+            <table className="min-w-full table-fixed">
+              <thead className="sticky top-0 z-10 bg-warm-card">
+                <tr className="border-b border-warm-border text-left text-xs uppercase tracking-wide text-warm-gray">
+                  <th scope="col" className="w-[40%] px-4 py-3 font-medium">Project</th>
+                  <th scope="col" className="w-[30%] px-4 py-3 text-right font-medium">Tasks Completed</th>
+                  <th scope="col" className="w-[30%] px-4 py-3 text-right font-medium">Time</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-warm-border">
+                {projectRows.map((row) => (
+                  <tr key={row.projectId} className="align-top">
+                    <td className="px-4 py-3 text-sm text-white">
+                      <span className="flex items-center gap-2">
+                        <span
+                          aria-hidden="true"
+                          className="h-2.5 w-2.5 rounded-full border border-white/20"
+                          style={{ backgroundColor: colorNameToHex(row.projectColor) ?? '#808080' }}
+                        />
+                        <span>{row.projectName}</span>
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-right text-sm tabular-nums text-warm-gray">
+                      {row.tasksCompleted}
+                    </td>
+                    <td className="px-4 py-3 text-right text-sm font-medium tabular-nums text-white">
+                      {formatMinutesWithHours(row.totalMinutes)}
                     </td>
                   </tr>
                 ))}

@@ -463,15 +463,16 @@ export default function Dashboard(): JSX.Element {
               <div className="bg-warm-card border border-warm-border rounded-2xl p-6 sm:p-8">
                 <h2 className="text-xl sm:text-2xl font-semibold text-white mb-1">
                   Task Duration Table
-                  <QuestionMark content="Time spent per label based on Todoist duration estimates for completed tasks in the selected period." />
+                  <QuestionMark content="Time spent by label and by project based on Todoist duration estimates for completed tasks in the selected period." />
                 </h2>
-                <div className="text-sm text-warm-gray mb-6">Duration by label for completed tasks</div>
+                <div className="text-sm text-warm-gray mb-6">Duration by label and project for completed tasks</div>
                 <TaskDurationTable
                   completedTasks={projectFilteredCompletedTasks}
                   loadingFullData={needsFullData}
                   selectedProjectIds={selectedProjectIds}
                   dateRange={dateRange}
                   labels={data?.labels ?? []}
+                  projectData={filteredProjects}
                 />
               </div>
             </LazySection>
