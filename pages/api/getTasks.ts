@@ -1,5 +1,5 @@
-import { TodoistApi } from "@doist/todoist-api-typescript";
-import type { Task as SdkTask, PersonalProject, WorkspaceProject } from "@doist/todoist-api-typescript";
+import { TodoistApi } from "@doist/todoist-sdk";
+import type { CustomFetch, Task as SdkTask, PersonalProject, WorkspaceProject } from "@doist/todoist-sdk";
 import { getToken } from 'next-auth/jwt';
 import { MAX_TASKS, INITIAL_BATCH_SIZE } from "../../utils/constants";
 import type { NextApiRequest, NextApiResponse } from 'next';
@@ -52,6 +52,9 @@ function getStringValue(source: ApiTaskRecord, ...keys: string[]): string {
     if (typeof value === 'string') {
       return value;
     }
+    if (value instanceof Date && !Number.isNaN(value.getTime())) {
+      return value.toISOString();
+    }
     if (typeof value === 'number' || typeof value === 'bigint') {
       return String(value);
     }
@@ -70,6 +73,80 @@ function getNumberValue(source: ApiTaskRecord, ...keys: string[]): number {
 
   return 0;
 }
+
+function normalizeJsonData(data: unknown): unknown {
+  if (typeof data !== 'string') {
+    return data;
+  }
+
+  try {
+    return JSON.parse(data);
+  } catch {
+    return data;
+  }
+}
+
+function headersToRecord(headers: Headers): Record<string, string> {
+  const result: Record<string, string> = {};
+  headers.forEach((value, key) => {
+    result[key] = value;
+  });
+  return result;
+}
+
+function normalizeTodoistSdkPayload(url: string, data: unknown): unknown {
+  const parsedData = normalizeJsonData(data);
+  const pathname = new URL(url).pathname;
+  const listEndpoint = pathname.match(/\/api\/v1\/(projects|tasks|labels)$/)?.[1];
+
+  if (!listEndpoint) {
+    return parsedData;
+  }
+
+  if (Array.isArray(parsedData)) {
+    return { results: parsedData, next_cursor: null };
+  }
+
+  const record = asObjectOrNull(parsedData);
+  if (!record) {
+    return parsedData;
+  }
+
+  const endpointKey = listEndpoint === 'tasks' ? 'items' : listEndpoint;
+  const results = record.results ?? record[endpointKey] ?? record[listEndpoint];
+  if (Array.isArray(results)) {
+    return {
+      ...record,
+      results,
+      next_cursor: record.next_cursor ?? record.nextCursor ?? null,
+    };
+  }
+
+  return parsedData;
+}
+
+const todoistSdkFetch: CustomFetch = async (url, options = {}) => {
+  const response = await fetch(url, options);
+  const responseText = await response.text();
+  const parsedBody = responseText ? normalizeJsonData(responseText) : undefined;
+  const body = response.ok
+    ? normalizeTodoistSdkPayload(url, parsedBody)
+    : parsedBody;
+  const bodyText = body === undefined
+    ? ''
+    : typeof body === 'string'
+      ? body
+      : JSON.stringify(body);
+
+  return {
+    ok: response.ok,
+    status: response.status,
+    statusText: response.statusText,
+    headers: headersToRecord(response.headers),
+    text: async () => bodyText,
+    json: async () => body,
+  };
+};
 
 function parsePositiveNumber(value: unknown): number | null {
   if (typeof value === 'number' && Number.isFinite(value) && value > 0) {
@@ -172,19 +249,22 @@ async function loadDummyDataset(): Promise<ApiResponse> {
   }
 }
 
-// Map Todoist API v1 Task to our ActiveTask type
+// Map SDK task data to our ActiveTask type
 const mapToActiveTask = (task: SdkTask): ActiveTask => {
-  const taskWithDuration = task as SdkTask & { duration?: TodoistTaskDuration | null };
+  const taskWithNoteCount = task as SdkTask & { noteCount?: unknown };
+  const commentCount = typeof taskWithNoteCount.noteCount === 'number'
+    ? taskWithNoteCount.noteCount
+    : 0;
 
   return {
     assigneeId: task.responsibleUid || null,
     assignerId: task.assignedByUid || null,
-    commentCount: task.noteCount,
+    commentCount,
     content: task.content,
-    createdAt: task.addedAt || '',
+    createdAt: task.addedAt?.toISOString() || '',
     creatorId: task.userId,
     description: task.description,
-    duration: normalizeTaskDuration(taskWithDuration.duration),
+    duration: normalizeTaskDuration(task.duration),
     due: task.due ? {
       isRecurring: task.due.isRecurring,
       string: task.due.string,
@@ -205,7 +285,7 @@ const mapToActiveTask = (task: SdkTask): ActiveTask => {
   };
 };
 
-// Map Todoist API v1 Project to our ProjectData type
+// Map SDK project data to our ProjectData type
 const mapToProjectData = (project: PersonalProject | WorkspaceProject): ProjectData => ({
   id: project.id,
   name: project.name,
@@ -318,7 +398,7 @@ export default async function handler(
     }
 
     const accessToken = token.accessToken as string;
-    const api = new TodoistApi(accessToken);
+    const api = new TodoistApi(accessToken, { customFetch: todoistSdkFetch });
 
     // Handle "load more" requests
     if (request.query.loadMore === 'true') {
@@ -339,7 +419,7 @@ export default async function handler(
       }
     }
 
-    // Fetch all data in parallel using the SDK + manual completed tasks fetch
+    // Fetch all data in parallel using the SDK plus the completed-tasks endpoint.
     const [currentUser, productivityStats, projectsResponse, tasksResponse, labelsResponse, initialTasks] = await Promise.all([
       api.getUser(),
       api.getProductivityStats(),
@@ -351,7 +431,7 @@ export default async function handler(
 
     const totalCount = productivityStats.completedCount;
 
-    // Map SDK types to our internal format
+    // Map SDK types to our internal dashboard format
     const projectData = projectsResponse.results.map(mapToProjectData);
     const activeTasks = tasksResponse.results.map(mapToActiveTask);
 
@@ -359,12 +439,12 @@ export default async function handler(
       allCompletedTasks: initialTasks,
       projectData,
       activeTasks,
-      labels: labelsResponse.results.map(l => ({
-        id: l.id,
-        name: l.name,
-        color: l.color,
-        order: l.order ?? 0,
-        isFavorite: l.isFavorite,
+      labels: labelsResponse.results.map(label => ({
+        id: label.id,
+        name: label.name,
+        color: label.color,
+        order: label.order ?? 0,
+        isFavorite: label.isFavorite,
       })),
       totalCompletedTasks: totalCount,
       hasMoreTasks: initialTasks.length < Math.min(totalCount, MAX_TASKS),

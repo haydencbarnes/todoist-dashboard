@@ -54,19 +54,19 @@ export function getDateRangeFromPreset(
 
     case '7d': {
       const start = new Date(now);
-      start.setDate(start.getDate() - 7);
+      start.setDate(start.getDate() - 6);
       return { start: startOfDay(start), end: todayEnd };
     }
 
     case '30d': {
       const start = new Date(now);
-      start.setDate(start.getDate() - 30);
+      start.setDate(start.getDate() - 29);
       return { start: startOfDay(start), end: todayEnd };
     }
 
     case '90d': {
       const start = new Date(now);
-      start.setDate(start.getDate() - 90);
+      start.setDate(start.getDate() - 89);
       return { start: startOfDay(start), end: todayEnd };
     }
 

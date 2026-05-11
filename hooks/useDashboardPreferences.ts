@@ -1,9 +1,12 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
-import type { DashboardPreferences, DateRange } from '@/types';
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
+import type { DashboardPreferences, DateRange, DateRangePreset } from '@/types';
+import { getDateRangeFromPreset } from '@/utils/dateRangePresets';
 
 const STORAGE_KEY = 'todoist_dashboard_preferences';
 const SCHEMA_VERSION = 2;
 const SAVE_DEBOUNCE_MS = 300;
+const VALID_PRESETS: DateRangePreset[] = ['all', 'today', 'yesterday', '7d', '30d', '90d', '6m', '1y', 'custom'];
+const DYNAMIC_PRESETS: DateRangePreset[] = ['all', 'today', 'yesterday', '7d', '30d', '90d', '6m', '1y'];
 
 // Default preferences
 const DEFAULT_PREFERENCES: DashboardPreferences = {
@@ -16,6 +19,28 @@ const DEFAULT_PREFERENCES: DashboardPreferences = {
   visibleSections: [], // Empty array means all sections visible
   version: SCHEMA_VERSION,
 };
+
+function getValidPreset(value: unknown): DateRangePreset {
+  return VALID_PRESETS.includes(value as DateRangePreset)
+    ? value as DateRangePreset
+    : 'all';
+}
+
+function resolveDateRange(dateRange: DateRange): DateRange {
+  if (DYNAMIC_PRESETS.includes(dateRange.preset)) {
+    return {
+      ...getDateRangeFromPreset(dateRange.preset),
+      preset: dateRange.preset,
+    };
+  }
+
+  return dateRange;
+}
+
+function getDateRangeDayKey(): string {
+  const now = new Date();
+  return `${now.getFullYear()}-${now.getMonth()}-${now.getDate()}`;
+}
 
 /**
  * Loads preferences from localStorage
@@ -54,26 +79,28 @@ function loadPreferences(): DashboardPreferences {
         ? parsed.dateRange
         : { start: null, end: null, preset: 'all' };
 
-    const VALID_PRESETS = ['all', 'today', 'yesterday', '7d', '30d', '90d', '6m', '1y', 'custom'];
+    const preset = getValidPreset(rawDateRange.preset);
     const dateRange: DateRange = {
       start: rawDateRange.start ? new Date(rawDateRange.start) : null,
       end: rawDateRange.end ? new Date(rawDateRange.end) : null,
-      preset: VALID_PRESETS.includes(rawDateRange.preset) ? rawDateRange.preset : 'all',
+      preset,
     };
 
+    const resolvedDateRange = resolveDateRange(dateRange);
+
     // Validate dates are not invalid
-    if (dateRange.start && isNaN(dateRange.start.getTime())) {
-      dateRange.start = null;
+    if (resolvedDateRange.start && isNaN(resolvedDateRange.start.getTime())) {
+      resolvedDateRange.start = null;
     }
-    if (dateRange.end && isNaN(dateRange.end.getTime())) {
-      dateRange.end = null;
+    if (resolvedDateRange.end && isNaN(resolvedDateRange.end.getTime())) {
+      resolvedDateRange.end = null;
     }
 
     return {
       selectedProjectIds: Array.isArray(parsed.selectedProjectIds)
         ? parsed.selectedProjectIds
         : [],
-      dateRange,
+      dateRange: resolvedDateRange,
       visibleSections: Array.isArray(parsed.visibleSections)
         ? parsed.visibleSections
         : [],
@@ -97,17 +124,24 @@ function savePreferences(preferences: DashboardPreferences): void {
 
   try {
     // Serialize dates to ISO strings
+    const dateRangeToSave = DYNAMIC_PRESETS.includes(preferences.dateRange.preset)
+      ? {
+          start: null,
+          end: null,
+          preset: preferences.dateRange.preset,
+        }
+      : {
+          ...preferences.dateRange,
+          start: preferences.dateRange.start
+            ? preferences.dateRange.start.toISOString()
+            : null,
+          end: preferences.dateRange.end
+            ? preferences.dateRange.end.toISOString()
+            : null,
+        };
     const toSave = {
       ...preferences,
-      dateRange: {
-        ...preferences.dateRange,
-        start: preferences.dateRange.start
-          ? preferences.dateRange.start.toISOString()
-          : null,
-        end: preferences.dateRange.end
-          ? preferences.dateRange.end.toISOString()
-          : null,
-      },
+      dateRange: dateRangeToSave,
     };
 
     localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
@@ -132,6 +166,7 @@ function savePreferences(preferences: DashboardPreferences): void {
  */
 export function useDashboardPreferences() {
   const [preferences, setPreferences] = useState<DashboardPreferences>(loadPreferences);
+  const dayKey = getDateRangeDayKey();
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Debounced save function
@@ -182,8 +217,13 @@ export function useDashboardPreferences() {
     savePreferences(DEFAULT_PREFERENCES);
   }, []);
 
+  const resolvedPreferences = useMemo<DashboardPreferences>(() => ({
+    ...preferences,
+    dateRange: resolveDateRange(preferences.dateRange),
+  }), [preferences, dayKey]);
+
   return {
-    preferences,
+    preferences: resolvedPreferences,
     updatePreferences,
     clearPreferences,
   };
